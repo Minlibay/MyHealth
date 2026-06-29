@@ -36,9 +36,6 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.myhealthv.app
       vars:
         BUNDLE_ID: "com.myhealthv.app"
         APP_STORE_APPLE_ID: 6785419314   # Apple ID приложения в App Store Connect
@@ -51,8 +48,16 @@ workflows:
       - name: Pod install
         script: |
           cd ios && pod install --repo-update && cd ..
-      - name: Set up provisioning profiles
-        script: xcode-project use-profiles
+      - name: Set up code signing (create cert/profile if missing)
+        script: |
+          keychain initialize
+          # Создаёт распространительный сертификат и App Store профиль, если их нет.
+          # Требует API-ключ App Store Connect с ролью Admin и зарегистрированный App ID.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Build IPA
         script: |
           flutter build ipa --release \
