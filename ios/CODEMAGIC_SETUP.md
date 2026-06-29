@@ -34,7 +34,8 @@
 - **Тип реального времени:** в `RingBlePlugin.m` команда `RealTimeDataWithType:1`
   (пульс). Точные коды типов и ключи `dicData` сверь с «IOS SDK Documentation.docx»
   из архива SDK — при необходимости поправь маппинг.
-- **Версия iOS:** Podfile задаёт `platform :ios, '13.0'` (требование HealthKit/CoreBluetooth).
+- **Версия iOS:** таргет **14.0** (требование плагина `health`) — в Podfile, podspec и
+  `project.pbxproj` (`IPHONEOS_DEPLOYMENT_TARGET = 14.0`).
 - Мост и парсинг на iOS **не проверялись на устройстве** (нет Mac в среде разработки) —
   первый прогон на Codemagic/реальном кольце может потребовать мелких правок.
 

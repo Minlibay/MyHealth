@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://www.jstyle.com'
   s.license          = { :type => 'Proprietary', :text => 'Vendor SDK (Jstyle).' }
   s.author           = { 'Jstyle' => 'support@jstyle.com' }
-  s.platform         = :ios, '13.0'
+  s.platform         = :ios, '14.0'
 
   s.source           = { :path => '.' }
   s.vendored_libraries = 'libBleSDK.a'
