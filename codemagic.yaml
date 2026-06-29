@@ -31,7 +31,7 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 90
     integrations:
-      app_store_connect: codemagic   # имя интеграции App Store Connect в Codemagic
+      app_store_connect: HEALTH   # имя интеграции App Store Connect в Codemagic
     environment:
       flutter: stable
       xcode: latest
