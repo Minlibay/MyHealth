@@ -19,5 +19,10 @@ Pod::Spec.new do |s|
   s.dependency 'Flutter'
 
   # Статическая либа собрана под arm64-устройство (не симулятор).
-  s.pod_target_xcconfig = { 'VALID_ARCHS' => 'arm64' }
+  # CLANG_ALLOW_NON_MODULAR_INCLUDES — вендорные C-заголовки во фреймворк-модуле.
+  s.pod_target_xcconfig = {
+    'VALID_ARCHS' => 'arm64',
+    'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES' => 'YES',
+    'DEFINES_MODULE' => 'YES',
+  }
 end
