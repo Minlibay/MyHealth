@@ -93,8 +93,9 @@ workflows:
             --dart-define=API_BASE_URL=$API_BASE_URL
       - name: Package and Sign IPA
         script: |
-          # Codemagic упаковывает xcarchive в полноценный .ipa и подписывает его релизным профилем
-          xcode-project package-app-store
+          # Используем правильную команду CLI: build-ipa
+          # Она упакует xcarchive в готовый .ipa, используя экспортированные ранее профили
+          xcode-project build-ipa
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
