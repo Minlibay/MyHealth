@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../core/health_metric.dart';
+import '../../core/health_status.dart';
 import '../../core/metric_format.dart';
 import '../auth/auth_session.dart';
 import '../metric_reading.dart';
@@ -67,11 +68,14 @@ class MetricsApi {
       final secondary = (map['secondary'] as num?)?.toDouble();
       result[metric] = MetricReading(
         metric: metric,
-        displayValue: formatMetricDisplay(metric, value, secondary),
+        // displayValue и status рассчитаны на сервере.
+        displayValue: (map['displayValue'] as String?) ??
+            formatMetricDisplay(metric, value, secondary),
         value: value,
         secondary: secondary,
         time: DateTime.parse(map['recordedAt'] as String),
         source: map['source'] as String?,
+        status: HealthStatus.fromApi(map['status'] as String?),
       );
     }
     return result;

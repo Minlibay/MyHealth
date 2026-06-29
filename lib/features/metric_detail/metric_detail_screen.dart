@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/health_metric.dart';
 import '../../core/health_status.dart';
 import '../../data/metric_sample.dart';
+import '../../data/ring/ring_capture.dart';
 import '../../features/dashboard/status_pill.dart';
 import '../../providers.dart';
 import 'metric_chart.dart';
@@ -36,8 +37,9 @@ class _MetricDetailScreenState extends ConsumerState<MetricDetailScreen> {
           if (series.value != null && series.value!.isNotEmpty) ...[
             const SizedBox(height: 14),
             Builder(builder: (context) {
-              final last = series.value!.last;
-              final status = statusFor(metric, last.value, last.secondary);
+              // Статус считает бэкенд (metricStatusesProvider).
+              final status = ref.watch(metricStatusesProvider).value?[metric] ??
+                  HealthStatus.unknown;
               if (!status.isMeaningful) return const SizedBox.shrink();
               return Align(
                 alignment: Alignment.centerLeft,

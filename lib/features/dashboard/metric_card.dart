@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/health_metric.dart';
 import '../../core/health_status.dart';
 import '../../data/metric_reading.dart';
+import '../../data/ring/ring_capture.dart';
 import '../../providers.dart';
 import 'sparkline.dart';
 import 'status_pill.dart';
@@ -27,9 +28,9 @@ class MetricCard extends ConsumerWidget {
     final hasData = reading != null;
     final series = ref.watch(metricSeriesProvider((metric: metric, days: 7)));
     final spark = series.value?.map((s) => s.value).toList() ?? const [];
-    final status = hasData
-        ? statusFor(metric, reading!.value, reading!.secondary)
-        : HealthStatus.unknown;
+    final statuses = ref.watch(metricStatusesProvider).value ?? const {};
+    final status =
+        statuses[metric] ?? reading?.status ?? HealthStatus.unknown;
 
     return Card(
       clipBehavior: Clip.antiAlias,

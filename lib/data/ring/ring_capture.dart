@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/health_metric.dart';
+import '../../core/health_status.dart';
 import '../../core/metric_format.dart';
 import '../auth/auth_controller.dart';
 import '../metric_reading.dart';
@@ -8,8 +9,8 @@ import '../metric_sample.dart';
 import 'ring_models.dart';
 import 'ring_providers.dart';
 
-// cloudModeProvider живёт в providers.dart; импортируем через barrel ниже.
-import '../../providers.dart' show cloudModeProvider;
+// cloudModeProvider/readingsProvider живут в providers.dart.
+import '../../providers.dart' show cloudModeProvider, readingsProvider;
 
 const _ringSource = 'Кольцо JCRing X3';
 
@@ -74,3 +75,28 @@ class RingCaptureController
 final ringCaptureProvider =
     NotifierProvider<RingCaptureController, Map<HealthMetric, MetricReading?>>(
         RingCaptureController.new);
+
+/// Статусы показателей, рассчитанные на бэкенде, для отображаемых значений
+/// (активный источник + живые данные кольца). Единая точка истины по нормам.
+final metricStatusesProvider =
+    FutureProvider<Map<HealthMetric, HealthStatus>>((ref) async {
+  final readings = ref.watch(readingsProvider).value ?? const {};
+  final ring = ref.watch(ringCaptureProvider);
+
+  final merged = <HealthMetric, MetricReading?>{...readings};
+  ring.forEach((k, v) {
+    if (v != null) merged[k] = v;
+  });
+
+  // Уже посчитанное сервером (cloud latest) берём как есть.
+  final result = <HealthMetric, HealthStatus>{};
+  for (final e in merged.entries) {
+    if (e.value != null && e.value!.status.isMeaningful) {
+      result[e.key] = e.value!.status;
+    }
+  }
+  // Остальное считаем через бэкенд (анонимный /evaluate).
+  final evaluated = await ref.watch(evaluationApiProvider).evaluate(merged);
+  evaluated.forEach((k, v) => result.putIfAbsent(k, () => v));
+  return result;
+});

@@ -1,4 +1,5 @@
 import '../core/health_metric.dart' show HealthMetric;
+import '../core/health_status.dart';
 
 /// Одно «последнее» значение показателя для отображения на дашборде.
 class MetricReading {
@@ -9,6 +10,7 @@ class MetricReading {
     this.value,
     this.secondary,
     this.source,
+    this.status = HealthStatus.unknown,
   });
 
   final HealthMetric metric;
@@ -27,4 +29,7 @@ class MetricReading {
 
   /// Откуда пришли данные (имя приложения/устройства), если известно.
   final String? source;
+
+  /// Оценка по нормам, рассчитанная на бэкенде.
+  final HealthStatus status;
 }
