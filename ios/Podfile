@@ -26,6 +26,10 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
+  # Статические фреймворки + модули: нужно смешанным Obj-C/Swift подам (health)
+  # для генерации <Pod>-Swift.h, и нашему поду BleSDKX3 — для модульного импорта.
+  use_frameworks! :linkage => :static
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
   # Нативный SDK кольца JCRing X3.

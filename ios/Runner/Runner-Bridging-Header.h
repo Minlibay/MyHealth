@@ -2,4 +2,4 @@
 
 // Obj-C мост к нативному BLE-SDK кольца JCRing X3 (под BleSDKX3).
 // Нужен Swift-коду в AppDelegate для регистрации плагина.
-#import "RingBlePlugin.h"
+#import <BleSDKX3/RingBlePlugin.h>
