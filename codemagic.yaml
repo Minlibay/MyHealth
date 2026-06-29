@@ -31,34 +31,34 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 90
     integrations:
-      app_store_connect: HEALTH   # имя интеграции App Store Connect в Codemagic
+      app_store_connect: HEALTH
     environment:
       flutter: stable
       xcode: latest
       cocoapods: default
       vars:
         BUNDLE_ID: "com.myhealthv.app"
-        APP_STORE_APPLE_ID: 6785419314   # Apple ID приложения в App Store Connect
-        API_BASE_URL: "http://185.40.4.195:53917"   # боевой адрес бэкенда (IP:порт)
+        APP_STORE_APPLE_ID: 6785419314
+        API_BASE_URL: "http://185.40.4.195:53917"
     scripts:
       - name: Get packages
         script: flutter pub get
       - name: Set up code signing (create cert/profile if missing)
         script: |
           keychain initialize
-          # Создаёт распространительный сертификат и App Store профиль, если их нет.
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
           keychain add-certificates
           xcode-project use-profiles
       - name: Pod install
         script: |
           cd ios && pod install --repo-update && cd ..
+      - name: Disable Xcode automatic signing
+        script: |
+          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
       - name: Build IPA
         script: |
-          # Собираем IPA без жесткого указания пути plist, так как use-profiles подготовит всё автоматически
           flutter build ipa --release \
+            --no-codesign \
             --dart-define=API_BASE_URL=$API_BASE_URL
     artifacts:
       - build/ios/ipa/*.ipa
@@ -66,7 +66,6 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        # Загрузить в TestFlight (бета) автоматически после успешной сборки
         submit_to_testflight: true
       email:
         recipients:
