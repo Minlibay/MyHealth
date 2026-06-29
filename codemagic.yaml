@@ -73,29 +73,27 @@ workflows:
             --create
 
           keychain add-certificates
+          
+          # Эта команда не только настраивает проект, но и создает 
+          # валидный файл параметров экспорта по пути /Users/builder/export_options.plist
           xcode-project use-profiles
       - name: Pod install
         script: |
           cd ios && pod install --repo-update && cd ..
       - name: Bump build number from latest TestFlight build
         script: |
-          # Автоматически берем номер последней сборки из TestFlight и увеличиваем на 1
           LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo "0")
           export NEW_BUILD_NUMBER=$((LATEST + 1))
           echo "BUILD_NUMBER=$NEW_BUILD_NUMBER" >> $CM_ENV
           echo "Next build number: $NEW_BUILD_NUMBER"
-      - name: Build xcarchive (no codesign)
+      - name: Build IPA
         script: |
-          # Собираем архив без локальной подписи под разработчика (обход ошибки Xcode)
+          # Собираем и сразу экспортируем стандартным методом Flutter.
+          # Файл export_options.plist берется из папки, куда его сохранил xcode-project use-profiles.
           flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
-            --no-codesign \
+            --export-options-plist=/Users/builder/export_options.plist \
             --dart-define=API_BASE_URL=$API_BASE_URL
-      - name: Package and Sign IPA
-        script: |
-          # Используем правильную команду CLI: build-ipa
-          # Она упакует xcarchive в готовый .ipa, используя экспортированные ранее профили
-          xcode-project build-ipa
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
