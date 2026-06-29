@@ -1,0 +1,215 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/health_metric.dart';
+import '../../core/health_status.dart';
+import '../../data/metric_sample.dart';
+import '../../features/dashboard/status_pill.dart';
+import '../../providers.dart';
+import 'metric_chart.dart';
+
+class MetricDetailScreen extends ConsumerStatefulWidget {
+  const MetricDetailScreen({super.key, required this.metric});
+
+  final HealthMetric metric;
+
+  @override
+  ConsumerState<MetricDetailScreen> createState() => _MetricDetailScreenState();
+}
+
+class _MetricDetailScreenState extends ConsumerState<MetricDetailScreen> {
+  int _days = 7;
+
+  @override
+  Widget build(BuildContext context) {
+    final metric = widget.metric;
+    final series =
+        ref.watch(metricSeriesProvider((metric: metric, days: _days)));
+
+    return Scaffold(
+      appBar: AppBar(title: Text(metric.title)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+        children: [
+          _HeroValue(metric: metric, samples: series.value),
+          if (series.value != null && series.value!.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Builder(builder: (context) {
+              final last = series.value!.last;
+              final status = statusFor(metric, last.value, last.secondary);
+              if (!status.isMeaningful) return const SizedBox.shrink();
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: StatusPill(status: status),
+              );
+            }),
+          ],
+          const SizedBox(height: 20),
+          Center(
+            child: SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 7, label: Text('Неделя')),
+                ButtonSegment(value: 30, label: Text('Месяц')),
+              ],
+              selected: {_days},
+              onSelectionChanged: (s) => setState(() => _days = s.first),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 20, 16, 12),
+              child: SizedBox(
+                height: 240,
+                child: series.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Ошибка: $e')),
+                  data: (samples) =>
+                      MetricChart(metric: metric, samples: samples),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (series.value != null && series.value!.isNotEmpty)
+            _StatsRow(metric: metric, samples: series.value!)
+                .animate()
+                .fadeIn(duration: 300.ms),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroValue extends StatelessWidget {
+  const _HeroValue({required this.metric, required this.samples});
+
+  final HealthMetric metric;
+  final List<MetricSample>? samples;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final last = (samples != null && samples!.isNotEmpty) ? samples!.last : null;
+    final value = last == null
+        ? '—'
+        : metric == HealthMetric.bloodPressure && last.secondary != null
+            ? '${_fmt(last.value)}/${_fmt(last.secondary!)}'
+            : _fmt(last.value);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            metric.color,
+            Color.lerp(metric.color, Colors.black, 0.18)!,
+          ],
+        ),
+      ),
+      child: Row(
+        children: [
+          Hero(
+            tag: 'metric-icon-${metric.name}',
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(metric.icon, color: Colors.white, size: 30),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Последнее значение',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: Colors.white70)),
+                const SizedBox(height: 4),
+                RichText(
+                  text: TextSpan(
+                    style: theme.textTheme.headlineLarge
+                        ?.copyWith(color: Colors.white, fontSize: 34),
+                    children: [
+                      TextSpan(text: value),
+                      TextSpan(
+                        text: ' ${metric.unit}',
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+}
+
+class _StatsRow extends StatelessWidget {
+  const _StatsRow({required this.metric, required this.samples});
+
+  final HealthMetric metric;
+  final List<MetricSample> samples;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = samples.map((s) => s.value).toList();
+    final avg = values.reduce((a, b) => a + b) / values.length;
+    final min = values.reduce((a, b) => a < b ? a : b);
+    final max = values.reduce((a, b) => a > b ? a : b);
+
+    return Row(
+      children: [
+        _stat(context, 'Среднее', avg),
+        const SizedBox(width: 12),
+        _stat(context, 'Минимум', min),
+        const SizedBox(width: 12),
+        _stat(context, 'Максимум', max),
+      ],
+    );
+  }
+
+  Widget _stat(BuildContext context, String label, double v) {
+    final theme = Theme.of(context);
+    final text = metric == HealthMetric.steps
+        ? v.toStringAsFixed(0)
+        : (v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1));
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          child: Column(
+            children: [
+              Text(label,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
+              const SizedBox(height: 6),
+              Text(text,
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(color: metric.color)),
+              Text(metric.unit,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

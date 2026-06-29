@@ -1,0 +1,88 @@
+workflows:
+  # --- Быстрая проверка сборки iOS без подписи (для верификации нативного кода) ---
+  ios-compile-check:
+    name: iOS compile check (no signing)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter version
+        script: flutter --version
+      - name: Get packages
+        script: flutter pub get
+      - name: Generate iOS config + pods
+        script: flutter build ios --config-only --no-codesign
+      - name: Pod install
+        script: |
+          cd ios && pod install --repo-update && cd ..
+      - name: Build iOS (release, no codesign)
+        script: flutter build ios --release --no-codesign --verbose
+    artifacts:
+      - flutter_drive.log
+      - /tmp/xcodebuild_logs/*.log
+      - build/ios/**/*.log
+
+  # --- Релизная сборка iOS (.ipa) с подписью App Store Connect ---
+  ios-release:
+    name: iOS Release (signed IPA)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: codemagic   # имя интеграции App Store Connect в Codemagic
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.myhealth.app
+      vars:
+        BUNDLE_ID: "com.myhealth.app"
+        APP_STORE_APPLE_ID: 0000000000   # Apple ID приложения в App Store Connect
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Set up provisioning profiles
+        script: xcode-project use-profiles
+      - name: Pod install
+        script: |
+          cd ios && pod install --repo-update && cd ..
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      # app_store_connect:
+      #   auth: integration
+      #   submit_to_testflight: true
+      email:
+        recipients:
+          - pslso0@outlook.com
+
+  # --- Android (APK + AAB) ---
+  android-release:
+    name: Android Release
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Build APK + AAB
+        script: |
+          flutter build apk --release
+          flutter build appbundle --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
+    publishing:
+      email:
+        recipients:
+          - pslso0@outlook.com
