@@ -38,11 +38,11 @@ workflows:
       cocoapods: default
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.myhealth.app
+        bundle_identifier: com.myhealthv.app
       vars:
-        BUNDLE_ID: "com.myhealth.app"
+        BUNDLE_ID: "com.myhealthv.app"
         APP_STORE_APPLE_ID: 0000000000   # Apple ID приложения в App Store Connect
-        API_BASE_URL: "https://api.example.com"   # боевой адрес бэкенда
+        API_BASE_URL: "http://185.40.4.195:53917"   # боевой адрес бэкенда (IP:порт)
     scripts:
       - name: Get packages
         script: flutter pub get
@@ -79,7 +79,7 @@ workflows:
     environment:
       flutter: stable
       vars:
-        API_BASE_URL: "https://api.example.com"   # боевой адрес бэкенда
+        API_BASE_URL: "http://185.40.4.195:53917"   # боевой адрес бэкенда (IP:порт)
     scripts:
       - name: Get packages
         script: flutter pub get

@@ -12,8 +12,9 @@ String get apiBaseUrl {
   if (_override.isNotEmpty) return _override;
 
   if (kReleaseMode) {
-    // ВАЖНО: замени на свой боевой домен или всегда передавай --dart-define.
-    return 'https://api.example.com';
+    // Боевой бэкенд (IP:порт). Лучше переопределять через --dart-define.
+    // TODO: перейти на https://домен с TLS до публичного релиза.
+    return 'http://185.40.4.195:53917';
   }
 
   if (kIsWeb) return 'http://localhost:5271';

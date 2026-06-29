@@ -14,6 +14,21 @@
 	<string>Bluetooth нужен для подключения к кольцу JCRing X3 и получения показателей здоровья.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Bluetooth нужен для подключения к кольцу JCRing X3.</string>
+	<!-- App Transport Security: исключение для бэкенда по HTTP (IP без домена/TLS).
+	     ВРЕМЕННО для тестов. Для публичного релиза перейти на https://домен и убрать. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>185.40.4.195</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
