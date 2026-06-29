@@ -42,25 +42,31 @@ workflows:
       vars:
         BUNDLE_ID: "com.myhealth.app"
         APP_STORE_APPLE_ID: 0000000000   # Apple ID приложения в App Store Connect
+        API_BASE_URL: "https://api.example.com"   # боевой адрес бэкенда
     scripts:
       - name: Get packages
         script: flutter pub get
-      - name: Set up provisioning profiles
-        script: xcode-project use-profiles
+      - name: Generate iOS config + pods
+        script: flutter build ios --config-only --release
       - name: Pod install
         script: |
           cd ios && pod install --repo-update && cd ..
+      - name: Set up provisioning profiles
+        script: xcode-project use-profiles
       - name: Build IPA
         script: |
           flutter build ipa --release \
+            --dart-define=API_BASE_URL=$API_BASE_URL \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
-      # app_store_connect:
-      #   auth: integration
-      #   submit_to_testflight: true
+      app_store_connect:
+        auth: integration
+        # Загрузить в TestFlight (бета). Для релиза в App Store — submit_to_app_store: true.
+        submit_to_testflight: true
+        # submit_to_app_store: true
       email:
         recipients:
           - pslso0@outlook.com
@@ -72,13 +78,15 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
+      vars:
+        API_BASE_URL: "https://api.example.com"   # боевой адрес бэкенда
     scripts:
       - name: Get packages
         script: flutter pub get
       - name: Build APK + AAB
         script: |
-          flutter build apk --release
-          flutter build appbundle --release
+          flutter build apk --release --dart-define=API_BASE_URL=$API_BASE_URL
+          flutter build appbundle --release --dart-define=API_BASE_URL=$API_BASE_URL
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
       - build/app/outputs/bundle/release/*.aab
