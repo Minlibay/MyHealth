@@ -10,8 +10,21 @@ import 'metric_sample.dart';
 /// Фабрика для условного импорта (см. health_repository_factory.dart).
 HealthRepository createHealthRepository() => RealHealthService();
 
+/// Типы сна различаются по платформам: SLEEP_SESSION есть только в
+/// Health Connect, а HealthKit пишет сон сегментами по фазам
+/// (SLEEP_LIGHT здесь = asleepCore). SLEEP_ASLEEP и SLEEP_SESSION вместе
+/// на Android нельзя — сессия уже включает фазы, будет двойной счёт.
+final List<HealthDataType> _sleepTypes = Platform.isIOS
+    ? [
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_LIGHT,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_REM,
+      ]
+    : [HealthDataType.SLEEP_SESSION];
+
 /// Маппинг показателей приложения на типы HealthKit / Health Connect.
-const Map<HealthMetric, List<HealthDataType>> _typeMap = {
+final Map<HealthMetric, List<HealthDataType>> _typeMap = {
   HealthMetric.steps: [HealthDataType.STEPS],
   HealthMetric.heartRate: [HealthDataType.HEART_RATE],
   HealthMetric.bloodPressure: [
@@ -19,7 +32,7 @@ const Map<HealthMetric, List<HealthDataType>> _typeMap = {
     HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
   ],
   HealthMetric.weight: [HealthDataType.WEIGHT],
-  HealthMetric.sleep: [HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_SESSION],
+  HealthMetric.sleep: _sleepTypes,
   HealthMetric.bloodGlucose: [HealthDataType.BLOOD_GLUCOSE],
   HealthMetric.bloodOxygen: [HealthDataType.BLOOD_OXYGEN],
 };
@@ -155,9 +168,16 @@ class RealHealthService implements HealthRepository {
 
     final latest = points.first;
 
-    // Сон приходит в минутах — показываем в часах.
+    // Сон приходит сегментами в минутах — суммируем последнюю ночь
+    // и показываем в часах. Окно 18 часов от конца последнего сегмента
+    // покрывает всю ночь, но не захватывает предыдущую (~24 ч назад).
     if (metric == HealthMetric.sleep) {
-      final hours = _rawNum(latest) / 60;
+      final nightStart = latest.dateTo.subtract(const Duration(hours: 18));
+      var minutes = 0.0;
+      for (final p in points) {
+        if (!p.dateTo.isBefore(nightStart)) minutes += _rawNum(p);
+      }
+      final hours = minutes / 60;
       return MetricReading(
         metric: metric,
         displayValue: hours.toStringAsFixed(1),
@@ -172,7 +192,7 @@ class RealHealthService implements HealthRepository {
       displayValue: _num(latest),
       value: _rawNum(latest),
       time: latest.dateTo,
-      source: latest.sourceName,
+      source: _storeSource(latest.sourceName),
     );
   }
 
@@ -225,13 +245,22 @@ class RealHealthService implements HealthRepository {
       ];
     }
 
+    // Сон: суммируем сегменты по ночам (ночь относим к дате пробуждения),
+    // в часах для единообразия с дашбордом.
+    if (metric == HealthMetric.sleep) {
+      final byDay = <DateTime, double>{};
+      for (final p in points) {
+        final day = DateTime(p.dateTo.year, p.dateTo.month, p.dateTo.day);
+        byDay[day] = (byDay[day] ?? 0) + _rawNum(p);
+      }
+      final sortedDays = byDay.keys.toList()..sort();
+      return [
+        for (final d in sortedDays) MetricSample(time: d, value: byDay[d]! / 60),
+      ];
+    }
+
     return [
-      for (final p in points)
-        MetricSample(
-          time: p.dateTo,
-          // Сон храним в часах для единообразия с дашбордом.
-          value: metric == HealthMetric.sleep ? _rawNum(p) / 60 : _rawNum(p),
-        ),
+      for (final p in points) MetricSample(time: p.dateTo, value: _rawNum(p)),
     ];
   }
 
