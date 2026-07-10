@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/health_metric.dart';
 import '../../data/health_repository.dart';
+import '../../data/metric_reading.dart';
 import '../../data/ring/ring_capture.dart';
 import '../../data/ring/ring_models.dart';
 import '../../data/ring/ring_providers.dart';
@@ -98,7 +99,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildDashboard() {
     final readings = ref.watch(readingsProvider);
     final cloudMode = ref.watch(cloudModeProvider);
-    // Живые значения с кольца перекрывают базовый источник для своих показателей.
+    // Живые значения с кольца перекрывают базовый источник,
+    // только если они свежее по времени измерения.
     final ringMap = ref.watch(ringCaptureProvider);
     return RefreshIndicator(
       onRefresh: () async {
@@ -136,7 +138,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     final metric = HealthMetric.values[i];
                     return MetricCard(
                       metric: metric,
-                      reading: ringMap[metric] ?? map[metric],
+                      reading: preferFresher(map[metric], ringMap[metric]),
                       onTap: () => context.push('/metric/${metric.name}'),
                     )
                         .animate()

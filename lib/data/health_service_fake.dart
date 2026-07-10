@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../core/health_metric.dart';
+import '../core/metric_source.dart';
 import 'health_repository.dart';
 import 'metric_reading.dart';
 import 'metric_sample.dart';
@@ -47,7 +48,7 @@ class FakeHealthService implements HealthRepository {
           value: value,
           secondary: secondary,
           time: now.subtract(ago),
-          source: 'Demo Device',
+          source: MetricSource.demo,
         );
 
     final steps = 6000 + _rnd.nextInt(3000);
@@ -100,6 +101,7 @@ class FakeHealthService implements HealthRepository {
       samples.add(MetricSample(
         time: day,
         value: value,
+        source: MetricSource.demo,
         // Для давления — диастолическое примерно на 40 ниже систолического.
         secondary: metric == HealthMetric.bloodPressure
             ? value - 42 + (_rnd.nextDouble() - 0.5) * 6

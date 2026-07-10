@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/health_metric.dart';
 import '../../core/health_status.dart';
+import '../../data/metric_reading.dart';
 import '../../data/metric_sample.dart';
 import '../../data/ring/ring_capture.dart';
 import '../../features/dashboard/status_pill.dart';
@@ -40,10 +41,32 @@ class _MetricDetailScreenState extends ConsumerState<MetricDetailScreen> {
               // Статус считает бэкенд (metricStatusesProvider).
               final status = ref.watch(metricStatusesProvider).value?[metric] ??
                   HealthStatus.unknown;
-              if (!status.isMeaningful) return const SizedBox.shrink();
-              return Align(
-                alignment: Alignment.centerLeft,
-                child: StatusPill(status: status),
+              // Источник — из более свежего чтения (хранилище или кольцо).
+              final source = preferFresher(
+                ref.watch(readingsProvider).value?[metric],
+                ref.watch(ringCaptureProvider)[metric],
+              )?.source;
+              if (!status.isMeaningful && source == null) {
+                return const SizedBox.shrink();
+              }
+              final theme = Theme.of(context);
+              return Row(
+                children: [
+                  if (status.isMeaningful) ...[
+                    StatusPill(status: status),
+                    const SizedBox(width: 10),
+                  ],
+                  if (source != null)
+                    Expanded(
+                      child: Text(
+                        'Источник: ${source.label}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.outline),
+                      ),
+                    ),
+                ],
               );
             }),
           ],

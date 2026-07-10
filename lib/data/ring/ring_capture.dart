@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/health_metric.dart';
 import '../../core/health_status.dart';
 import '../../core/metric_format.dart';
+import '../../core/metric_source.dart';
 import '../auth/auth_controller.dart';
 import '../metric_reading.dart';
 import '../metric_sample.dart';
@@ -11,8 +12,6 @@ import 'ring_providers.dart';
 
 // cloudModeProvider/readingsProvider живут в providers.dart.
 import '../../providers.dart' show cloudModeProvider, readingsProvider;
-
-const _ringSource = 'Кольцо JCRing X3';
 
 /// Захватывает живые данные кольца: держит последние значения как
 /// [MetricReading] (для дашборда) и периодически выгружает их на сервер.
@@ -41,7 +40,7 @@ class RingCaptureController
         value: value,
         displayValue: formatMetricDisplay(metric, value, null),
         time: d.time,
-        source: _ringSource,
+        source: MetricSource.ring,
       );
     }
 
@@ -66,7 +65,11 @@ class RingCaptureController
       if (r?.value == null) continue;
       // fire-and-forget; офлайн/ошибки игнорируем.
       api.uploadSamples(entry.key, [
-        MetricSample(time: r!.time, value: r.value!, secondary: r.secondary),
+        MetricSample(
+            time: r!.time,
+            value: r.value!,
+            secondary: r.secondary,
+            source: r.source),
       ]).catchError((_) => 0);
     }
   }
@@ -83,9 +86,10 @@ final metricStatusesProvider =
   final readings = ref.watch(readingsProvider).value ?? const {};
   final ring = ref.watch(ringCaptureProvider);
 
+  // Кольцо перекрывает базовый источник, только если его данные свежее.
   final merged = <HealthMetric, MetricReading?>{...readings};
   ring.forEach((k, v) {
-    if (v != null) merged[k] = v;
+    merged[k] = preferFresher(merged[k], v);
   });
 
   // Уже посчитанное сервером (cloud latest) берём как есть.

@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:health/health.dart';
 
 import '../core/health_metric.dart';
+import '../core/metric_source.dart';
 import 'health_repository.dart';
 import 'metric_reading.dart';
 import 'metric_sample.dart';
@@ -40,6 +41,14 @@ final Map<HealthMetric, List<HealthDataType>> _typeMap = {
 final List<HealthDataType> _allTypes = {
   for (final list in _typeMap.values) ...list,
 }.toList();
+
+/// Хранилище платформы: Apple Health бывает только на iOS,
+/// Health Connect — только на Android.
+final MetricSourceType _storeType =
+    Platform.isIOS ? MetricSourceType.appleHealth : MetricSourceType.healthConnect;
+
+/// Источник «хранилище платформы + приложение/устройство, записавшее данные».
+MetricSource _storeSource([String? detail]) => MetricSource(_storeType, detail);
 
 /// Реальная реализация поверх пакета `health`.
 class RealHealthService implements HealthRepository {
@@ -136,7 +145,8 @@ class RealHealthService implements HealthRepository {
           metric: metric,
           displayValue: '$total',
           value: total.toDouble(),
-          time: to);
+          time: to,
+          source: _storeSource());
     }
 
     final points = await _health.getHealthDataFromTypes(
@@ -162,7 +172,7 @@ class RealHealthService implements HealthRepository {
         value: _rawNum(sys),
         secondary: _rawNum(dia),
         time: sys.dateTo,
-        source: sys.sourceName,
+        source: _storeSource(sys.sourceName),
       );
     }
 
@@ -183,7 +193,7 @@ class RealHealthService implements HealthRepository {
         displayValue: hours.toStringAsFixed(1),
         value: hours,
         time: latest.dateTo,
-        source: latest.sourceName,
+        source: _storeSource(latest.sourceName),
       );
     }
 
@@ -208,7 +218,8 @@ class RealHealthService implements HealthRepository {
         final start = DateTime(now.year, now.month, now.day - i);
         final end = start.add(const Duration(days: 1));
         final total = await _health.getTotalStepsInInterval(start, end);
-        samples.add(MetricSample(time: start, value: (total ?? 0).toDouble()));
+        samples.add(MetricSample(
+            time: start, value: (total ?? 0).toDouble(), source: _storeSource()));
       }
       return samples;
     }
@@ -234,6 +245,7 @@ class RealHealthService implements HealthRepository {
           MetricSample(
             time: s.dateTo,
             value: _rawNum(s),
+            source: _storeSource(s.sourceName),
             secondary: dia.isEmpty
                 ? null
                 : _rawNum(dia.reduce((a, b) =>
@@ -255,12 +267,17 @@ class RealHealthService implements HealthRepository {
       }
       final sortedDays = byDay.keys.toList()..sort();
       return [
-        for (final d in sortedDays) MetricSample(time: d, value: byDay[d]! / 60),
+        for (final d in sortedDays)
+          MetricSample(time: d, value: byDay[d]! / 60, source: _storeSource()),
       ];
     }
 
     return [
-      for (final p in points) MetricSample(time: p.dateTo, value: _rawNum(p)),
+      for (final p in points)
+        MetricSample(
+            time: p.dateTo,
+            value: _rawNum(p),
+            source: _storeSource(p.sourceName)),
     ];
   }
 
