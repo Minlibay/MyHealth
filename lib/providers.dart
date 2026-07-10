@@ -9,6 +9,7 @@ import 'data/health_repository.dart';
 import 'data/health_repository_factory.dart';
 import 'data/metric_reading.dart';
 import 'data/metric_sample.dart';
+import 'data/workout.dart';
 
 /// Источник данных устройства: фейковый на Web, реальный (HealthKit/Health
 /// Connect) на мобильных. Используется для отображения без входа и как
@@ -17,8 +18,9 @@ final deviceRepositoryProvider =
     Provider<HealthRepository>((ref) => createHealthRepository());
 
 /// Источник данных из облака (сервер). Доступен после входа.
-final cloudRepositoryProvider = Provider<HealthRepository>(
-    (ref) => ApiHealthRepository(ref.watch(metricsApiProvider)));
+final cloudRepositoryProvider = Provider<HealthRepository>((ref) =>
+    ApiHealthRepository(
+        ref.watch(metricsApiProvider), ref.watch(workoutsApiProvider)));
 
 /// Облачный режим включён, когда пользователь вошёл в аккаунт.
 final cloudModeProvider = Provider<bool>(
@@ -128,6 +130,11 @@ final metricSeriesProvider =
       .fetchSeries(args.metric, days: args.days);
 });
 
+/// Тренировки за период из активного источника (новые первыми).
+final workoutsProvider = FutureProvider.family<List<Workout>, int>((ref, days) {
+  return ref.watch(activeRepositoryProvider).fetchWorkouts(days: days);
+});
+
 /// Фаза синхронизации с сервером.
 enum SyncPhase { idle, syncing, synced, error }
 
@@ -156,10 +163,14 @@ class SyncController extends Notifier<SyncStatus> {
         final series = await device.fetchSeries(metric, days: 30);
         total += await api.uploadSamples(metric, series);
       }
+      // Тренировки выгружаются вместе с показателями.
+      final workouts = await device.fetchWorkouts(days: 30);
+      total += await ref.read(workoutsApiProvider).uploadWorkouts(workouts);
       state = SyncStatus(SyncPhase.synced, at: DateTime.now(), inserted: total);
       // Обновляем облачные данные на дашборде.
       ref.invalidate(readingsProvider);
       ref.invalidate(metricSeriesProvider);
+      ref.invalidate(workoutsProvider);
     } catch (e) {
       state = SyncStatus(SyncPhase.error, at: DateTime.now(), message: '$e');
     }

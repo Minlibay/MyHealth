@@ -7,6 +7,7 @@ import '../api/api_client.dart';
 import '../api/auth_api.dart';
 import '../api/evaluation_api.dart';
 import '../api/metrics_api.dart';
+import '../api/workouts_api.dart';
 import 'auth_session.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
@@ -19,6 +20,9 @@ final metricsApiProvider =
 
 final evaluationApiProvider =
     Provider<EvaluationApi>((ref) => EvaluationApi(ref.watch(apiClientProvider)));
+
+final workoutsApiProvider =
+    Provider<WorkoutsApi>((ref) => WorkoutsApi(ref.watch(apiClientProvider)));
 
 /// Состояние аутентификации. null — пользователь не вошёл (локальный режим).
 /// Токен подставляется в [ApiClient] и сохраняется в защищённом хранилище.

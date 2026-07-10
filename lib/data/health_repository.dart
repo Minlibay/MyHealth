@@ -1,6 +1,7 @@
 import '../core/health_metric.dart';
 import 'metric_reading.dart';
 import 'metric_sample.dart';
+import 'workout.dart';
 
 /// Статус доступности хранилища здоровья на устройстве.
 enum HealthAvailability {
@@ -43,4 +44,7 @@ abstract class HealthRepository {
 
   /// История одного показателя за последние [days] дней (по возрастанию времени).
   Future<List<MetricSample>> fetchSeries(HealthMetric metric, {int days});
+
+  /// Тренировки за последние [days] дней (новые первыми).
+  Future<List<Workout>> fetchWorkouts({int days});
 }

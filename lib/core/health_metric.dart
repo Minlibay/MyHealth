@@ -40,7 +40,52 @@ enum HealthMetric {
       title: 'SpO₂',
       icon: Icons.air_rounded,
       unit: '%',
-      color: Color(0xFF06B6D4));
+      color: Color(0xFF06B6D4)),
+  activeEnergy(
+      title: 'Активные калории',
+      icon: Icons.local_fire_department_rounded,
+      unit: 'ккал',
+      color: Color(0xFFF97316)),
+  distance(
+      title: 'Дистанция',
+      icon: Icons.route_rounded,
+      unit: 'км',
+      color: Color(0xFF22C55E)),
+  water(
+      title: 'Вода',
+      icon: Icons.local_drink_rounded,
+      unit: 'л',
+      color: Color(0xFF0EA5E9)),
+  bodyTemperature(
+      title: 'Температура',
+      icon: Icons.thermostat_rounded,
+      unit: '°C',
+      color: Color(0xFFEF4444)),
+  respiratoryRate(
+      title: 'Дыхание',
+      icon: Icons.waves_rounded,
+      unit: 'вд/мин',
+      color: Color(0xFF38BDF8)),
+  restingHeartRate(
+      title: 'Пульс в покое',
+      icon: Icons.favorite_border_rounded,
+      unit: 'уд/мин',
+      color: Color(0xFFE11D48)),
+  hrv(
+      title: 'HRV',
+      icon: Icons.stacked_line_chart_rounded,
+      unit: 'мс',
+      color: Color(0xFFA855F7)),
+  bodyFat(
+      title: 'Жир в теле',
+      icon: Icons.pie_chart_rounded,
+      unit: '%',
+      color: Color(0xFFEAB308)),
+  height(
+      title: 'Рост',
+      icon: Icons.height_rounded,
+      unit: 'см',
+      color: Color(0xFF64748B));
 
   const HealthMetric({
     required this.title,

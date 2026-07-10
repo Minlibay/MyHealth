@@ -7,6 +7,7 @@ import '../core/metric_source.dart';
 import 'health_repository.dart';
 import 'metric_reading.dart';
 import 'metric_sample.dart';
+import 'workout.dart';
 
 /// Фабрика для условного импорта (см. health_repository_factory.dart).
 HealthRepository createHealthRepository() => RealHealthService();
@@ -25,6 +26,8 @@ final List<HealthDataType> _sleepTypes = Platform.isIOS
     : [HealthDataType.SLEEP_SESSION];
 
 /// Маппинг показателей приложения на типы HealthKit / Health Connect.
+/// Дистанция и HRV имеют разные типы на платформах (SDNN на iOS,
+/// RMSSD на Android — значения между платформами не сравниваются напрямую).
 final Map<HealthMetric, List<HealthDataType>> _typeMap = {
   HealthMetric.steps: [HealthDataType.STEPS],
   HealthMetric.heartRate: [HealthDataType.HEART_RATE],
@@ -36,10 +39,42 @@ final Map<HealthMetric, List<HealthDataType>> _typeMap = {
   HealthMetric.sleep: _sleepTypes,
   HealthMetric.bloodGlucose: [HealthDataType.BLOOD_GLUCOSE],
   HealthMetric.bloodOxygen: [HealthDataType.BLOOD_OXYGEN],
+  HealthMetric.activeEnergy: [HealthDataType.ACTIVE_ENERGY_BURNED],
+  HealthMetric.distance: Platform.isIOS
+      ? [HealthDataType.DISTANCE_WALKING_RUNNING]
+      : [HealthDataType.DISTANCE_DELTA],
+  HealthMetric.water: [HealthDataType.WATER],
+  HealthMetric.bodyTemperature: [HealthDataType.BODY_TEMPERATURE],
+  HealthMetric.respiratoryRate: [HealthDataType.RESPIRATORY_RATE],
+  HealthMetric.restingHeartRate: [HealthDataType.RESTING_HEART_RATE],
+  HealthMetric.hrv: Platform.isIOS
+      ? [HealthDataType.HEART_RATE_VARIABILITY_SDNN]
+      : [HealthDataType.HEART_RATE_VARIABILITY_RMSSD],
+  HealthMetric.bodyFat: [HealthDataType.BODY_FAT_PERCENTAGE],
+  HealthMetric.height: [HealthDataType.HEIGHT],
 };
+
+/// Накопительные показатели: осмыслена суточная сумма, а не последняя запись.
+/// Шаги обрабатываются отдельно через getTotalStepsInInterval.
+const Set<HealthMetric> _dailySumMetrics = {
+  HealthMetric.activeEnergy,
+  HealthMetric.distance,
+  HealthMetric.water,
+};
+
+/// Приведение сырого значения к единицам приложения:
+/// метры → км/см, доля жира на iOS → проценты.
+double _convertValue(HealthMetric metric, double v) => switch (metric) {
+      HealthMetric.distance => v / 1000,
+      HealthMetric.height => v * 100,
+      // HealthKit может отдавать долю (0.18 = 18%), Health Connect — проценты.
+      HealthMetric.bodyFat => v <= 1 ? v * 100 : v,
+      _ => v,
+    };
 
 final List<HealthDataType> _allTypes = {
   for (final list in _typeMap.values) ...list,
+  HealthDataType.WORKOUT,
 }.toList();
 
 /// Хранилище платформы: Apple Health бывает только на iOS,
@@ -149,6 +184,28 @@ class RealHealthService implements HealthRepository {
           source: _storeSource());
     }
 
+    // Накопительные показатели — сумма за сегодня.
+    if (_dailySumMetrics.contains(metric)) {
+      final startOfDay = DateTime(to.year, to.month, to.day);
+      final points = await _health.getHealthDataFromTypes(
+        types: types,
+        startTime: startOfDay,
+        endTime: to,
+      );
+      if (points.isEmpty) return null;
+      var total = 0.0;
+      for (final p in points) {
+        total += _convertValue(metric, _rawNum(p));
+      }
+      return MetricReading(
+        metric: metric,
+        displayValue: _fmt(total),
+        value: total,
+        time: to,
+        source: _storeSource(),
+      );
+    }
+
     final points = await _health.getHealthDataFromTypes(
       types: types,
       startTime: from,
@@ -197,10 +254,11 @@ class RealHealthService implements HealthRepository {
       );
     }
 
+    final value = _convertValue(metric, _rawNum(latest));
     return MetricReading(
       metric: metric,
-      displayValue: _num(latest),
-      value: _rawNum(latest),
+      displayValue: _fmt(value),
+      value: value,
       time: latest.dateTo,
       source: _storeSource(latest.sourceName),
     );
@@ -257,6 +315,20 @@ class RealHealthService implements HealthRepository {
       ];
     }
 
+    // Накопительные показатели: суммы по календарным дням.
+    if (_dailySumMetrics.contains(metric)) {
+      final byDay = <DateTime, double>{};
+      for (final p in points) {
+        final day = DateTime(p.dateTo.year, p.dateTo.month, p.dateTo.day);
+        byDay[day] = (byDay[day] ?? 0) + _convertValue(metric, _rawNum(p));
+      }
+      final sortedDays = byDay.keys.toList()..sort();
+      return [
+        for (final d in sortedDays)
+          MetricSample(time: d, value: byDay[d]!, source: _storeSource()),
+      ];
+    }
+
     // Сон: суммируем сегменты по ночам (ночь относим к дате пробуждения),
     // в часах для единообразия с дашбордом.
     if (metric == HealthMetric.sleep) {
@@ -276,15 +348,41 @@ class RealHealthService implements HealthRepository {
       for (final p in points)
         MetricSample(
             time: p.dateTo,
-            value: _rawNum(p),
+            value: _convertValue(metric, _rawNum(p)),
             source: _storeSource(p.sourceName)),
     ];
   }
 
-  String _num(HealthDataPoint p) {
-    final v = _rawNum(p);
-    return v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
+  @override
+  Future<List<Workout>> fetchWorkouts({int days = 30}) async {
+    await _ensureConfigured();
+    final now = DateTime.now();
+    final points = await _health.getHealthDataFromTypes(
+      types: [HealthDataType.WORKOUT],
+      startTime: now.subtract(Duration(days: days)),
+      endTime: now,
+    );
+    final workouts = <Workout>[];
+    for (final p in points) {
+      final v = p.value;
+      if (v is! WorkoutHealthValue) continue;
+      workouts.add(Workout(
+        activityType: v.workoutActivityType.name,
+        start: p.dateFrom,
+        end: p.dateTo,
+        energyKcal: v.totalEnergyBurned?.toDouble(),
+        distanceMeters: v.totalDistance?.toDouble(),
+        source: _storeSource(p.sourceName),
+      ));
+    }
+    workouts.sort((a, b) => b.start.compareTo(a.start));
+    return workouts;
   }
+
+  String _num(HealthDataPoint p) => _fmt(_rawNum(p));
+
+  String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
   double _rawNum(HealthDataPoint p) {
     final value = p.value;

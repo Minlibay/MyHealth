@@ -116,6 +116,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             parent: BouncingScrollPhysics()),
         slivers: [
           const SliverToBoxAdapter(child: _Header()),
+          const SliverToBoxAdapter(child: _WorkoutsTile()),
           readings.when(
             loading: () => const SliverFillRemaining(
                 hasScrollBody: false,
@@ -210,6 +211,42 @@ class _Header extends ConsumerWidget {
             icon: const Icon(Icons.settings_rounded),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Тайл «Тренировки»: количество за неделю и переход к списку.
+class _WorkoutsTile extends ConsumerWidget {
+  const _WorkoutsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final count = ref.watch(workoutsProvider(7)).value?.length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          leading: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.fitness_center_rounded,
+                color: theme.colorScheme.primary, size: 22),
+          ),
+          title: const Text('Тренировки'),
+          subtitle: Text(count == null
+              ? 'За неделю'
+              : 'За неделю: $count'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => context.push('/workouts'),
+        ),
       ),
     );
   }
