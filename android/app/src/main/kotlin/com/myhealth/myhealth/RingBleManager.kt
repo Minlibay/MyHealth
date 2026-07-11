@@ -132,7 +132,11 @@ class RingBleManager(private val context: Context) : EventChannel.StreamHandler 
     }
 
     fun startScan() {
-        val scanner = adapter?.bluetoothLeScanner ?: run {
+        val a = adapter
+        if (a == null || !a.isEnabled) {
+            emitState("failed"); return
+        }
+        val scanner = a.bluetoothLeScanner ?: run {
             emitState("failed"); return
         }
         found.clear()
@@ -150,13 +154,17 @@ class RingBleManager(private val context: Context) : EventChannel.StreamHandler 
     /**
      * [auto] = true — фоновое переподключение (после перезапуска приложения):
      * стек BLE сам подключится, как только кольцо окажется в зоне действия.
+     * Ошибки автоподключения не показываем — кольцо может быть просто
+     * вне зоны или Bluetooth ещё включается.
      */
     fun connect(id: String, auto: Boolean = false) {
         stopScan()
-        val device: BluetoothDevice = adapter?.getRemoteDevice(id) ?: run {
-            emitState("failed"); return
-        }
-        emitState("connecting")
+        val device: BluetoothDevice = adapter?.takeIf { it.isEnabled }?.getRemoteDevice(id)
+            ?: run {
+                if (!auto) emitState("failed")
+                return
+            }
+        if (!auto) emitState("connecting")
         gatt = device.connectGatt(context, auto, gattCallback, BluetoothDevice.TRANSPORT_LE)
     }
 
