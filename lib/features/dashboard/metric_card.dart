@@ -57,10 +57,28 @@ class MetricCard extends ConsumerWidget {
                   ),
                   const Spacer(),
                   if (hasData)
-                    Text(
-                      _formatTime(reading!.time),
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.outline),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          _formatTime(reading!.time),
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: theme.colorScheme.outline),
+                        ),
+                        if (reading!.source != null)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 96),
+                            child: Text(
+                              reading!.source!.type.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 10,
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                 ],
               ),

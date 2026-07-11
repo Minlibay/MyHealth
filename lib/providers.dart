@@ -7,8 +7,11 @@ import 'data/api/api_health_repository.dart';
 import 'data/auth/auth_controller.dart';
 import 'data/health_repository.dart';
 import 'data/health_repository_factory.dart';
+import 'data/insights.dart';
 import 'data/metric_reading.dart';
 import 'data/metric_sample.dart';
+import 'data/sleep_session.dart';
+import 'data/workout.dart';
 
 /// Источник данных устройства: фейковый на Web, реальный (HealthKit/Health
 /// Connect) на мобильных. Используется для отображения без входа и как
@@ -17,8 +20,9 @@ final deviceRepositoryProvider =
     Provider<HealthRepository>((ref) => createHealthRepository());
 
 /// Источник данных из облака (сервер). Доступен после входа.
-final cloudRepositoryProvider = Provider<HealthRepository>(
-    (ref) => ApiHealthRepository(ref.watch(metricsApiProvider)));
+final cloudRepositoryProvider = Provider<HealthRepository>((ref) =>
+    ApiHealthRepository(
+        ref.watch(metricsApiProvider), ref.watch(workoutsApiProvider)));
 
 /// Облачный режим включён, когда пользователь вошёл в аккаунт.
 final cloudModeProvider = Provider<bool>(
@@ -128,6 +132,25 @@ final metricSeriesProvider =
       .fetchSeries(args.metric, days: args.days);
 });
 
+/// Тренировки за период из активного источника (новые первыми).
+final workoutsProvider = FutureProvider.family<List<Workout>, int>((ref, days) {
+  return ref.watch(activeRepositoryProvider).fetchWorkouts(days: days);
+});
+
+/// Инсайты (скоры, базовые линии, тренды) — считает бэкенд.
+/// Доступны только в облачном режиме.
+final insightsProvider = FutureProvider<Insights?>((ref) async {
+  if (!ref.watch(cloudModeProvider)) return null;
+  return ref.watch(insightsApiProvider).fetch();
+});
+
+/// Сессии сна с фазами с сервера (облачный режим).
+final sleepSessionsProvider =
+    FutureProvider.family<List<SleepSessionModel>, int>((ref, days) async {
+  if (!ref.watch(cloudModeProvider)) return const [];
+  return ref.watch(sleepApiProvider).fetchSessions(days: days);
+});
+
 /// Фаза синхронизации с сервером.
 enum SyncPhase { idle, syncing, synced, error }
 
@@ -156,10 +179,16 @@ class SyncController extends Notifier<SyncStatus> {
         final series = await device.fetchSeries(metric, days: 30);
         total += await api.uploadSamples(metric, series);
       }
+      // Тренировки выгружаются вместе с показателями.
+      final workouts = await device.fetchWorkouts(days: 30);
+      total += await ref.read(workoutsApiProvider).uploadWorkouts(workouts);
       state = SyncStatus(SyncPhase.synced, at: DateTime.now(), inserted: total);
       // Обновляем облачные данные на дашборде.
       ref.invalidate(readingsProvider);
       ref.invalidate(metricSeriesProvider);
+      ref.invalidate(workoutsProvider);
+      ref.invalidate(insightsProvider);
+      ref.invalidate(sleepSessionsProvider);
     } catch (e) {
       state = SyncStatus(SyncPhase.error, at: DateTime.now(), message: '$e');
     }

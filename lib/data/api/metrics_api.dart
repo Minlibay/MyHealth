@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/health_metric.dart';
 import '../../core/health_status.dart';
 import '../../core/metric_format.dart';
+import '../../core/metric_source.dart';
 import '../auth/auth_session.dart';
 import '../metric_reading.dart';
 import '../metric_sample.dart';
@@ -26,7 +27,9 @@ class MetricsApi {
     return null;
   }
 
-  /// Выгружает историю одного показателя. Идемпотентно по [MetricSample.time].
+  /// Выгружает историю одного показателя. Идемпотентно по [MetricSample.time]
+  /// в пределах источника: кольцо и хранилище здоровья не дедуплицируют
+  /// записи друг друга (у clientId кольца префикс "ring-").
   /// Возвращает число вставленных записей.
   Future<int> uploadSamples(HealthMetric metric, List<MetricSample> samples) async {
     if (samples.isEmpty) return 0;
@@ -37,7 +40,9 @@ class MetricsApi {
           'value': s.value,
           if (s.secondary != null) 'secondary': s.secondary,
           'recordedAt': s.time.toUtc().toIso8601String(),
-          'clientId': '${metric.name}-${s.time.toUtc().toIso8601String()}',
+          if (s.source != null) 'source': s.source!.toApi(),
+          'clientId': '${_clientIdPrefix(s.source)}'
+              '${metric.name}-${s.time.toUtc().toIso8601String()}',
         }
     ];
     try {
@@ -74,7 +79,7 @@ class MetricsApi {
         value: value,
         secondary: secondary,
         time: DateTime.parse(map['recordedAt'] as String),
-        source: map['source'] as String?,
+        source: MetricSource.fromApi(map['source'] as String?),
         status: HealthStatus.fromApi(map['status'] as String?),
       );
     }
@@ -95,11 +100,18 @@ class MetricsApi {
           time: DateTime.parse((raw as Map)['recordedAt'] as String),
           value: ((raw)['value'] as num).toDouble(),
           secondary: ((raw)['secondary'] as num?)?.toDouble(),
+          source: MetricSource.fromApi((raw)['source'] as String?),
         )
     ];
     samples.sort((a, b) => a.time.compareTo(b.time));
     return samples;
   }
+
+  /// Кольцо получает собственное пространство clientId, чтобы его записи
+  /// не схлопывались с записями хранилища здоровья за то же время.
+  /// Для хранилища префикса нет — совместимость с уже выгруженными данными.
+  static String _clientIdPrefix(MetricSource? source) =>
+      source?.type == MetricSourceType.ring ? 'ring-' : '';
 
   Future<List<dynamic>> _get(String path, {Map<String, dynamic>? query}) async {
     try {

@@ -6,7 +6,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/api_client.dart';
 import '../api/auth_api.dart';
 import '../api/evaluation_api.dart';
+import '../api/insights_api.dart';
 import '../api/metrics_api.dart';
+import '../api/sleep_api.dart';
+import '../api/user_api.dart';
+import '../api/workouts_api.dart';
 import 'auth_session.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
@@ -20,6 +24,18 @@ final metricsApiProvider =
 final evaluationApiProvider =
     Provider<EvaluationApi>((ref) => EvaluationApi(ref.watch(apiClientProvider)));
 
+final workoutsApiProvider =
+    Provider<WorkoutsApi>((ref) => WorkoutsApi(ref.watch(apiClientProvider)));
+
+final userApiProvider =
+    Provider<UserApi>((ref) => UserApi(ref.watch(apiClientProvider)));
+
+final insightsApiProvider =
+    Provider<InsightsApi>((ref) => InsightsApi(ref.watch(apiClientProvider)));
+
+final sleepApiProvider =
+    Provider<SleepApi>((ref) => SleepApi(ref.watch(apiClientProvider)));
+
 /// Состояние аутентификации. null — пользователь не вошёл (локальный режим).
 /// Токен подставляется в [ApiClient] и сохраняется в защищённом хранилище.
 class AuthController extends AsyncNotifier<AuthSession?> {
@@ -28,11 +44,25 @@ class AuthController extends AsyncNotifier<AuthSession?> {
 
   @override
   Future<AuthSession?> build() async {
+    final client = ref.read(apiClientProvider);
+    // Ротация токенов происходит внутри ApiClient — сохраняем новую пару.
+    client.onTokensRefreshed = (token, refresh) {
+      final current = state.value;
+      if (current == null) return;
+      _persist(current.copyWith(token: token, refreshToken: refresh));
+    };
+    // Refresh отвергнут сервером — локальная сессия больше не действительна.
+    client.onSessionExpired = () {
+      _storage.delete(key: _key);
+      state = const AsyncData(null);
+    };
+
     final raw = await _storage.read(key: _key);
     if (raw == null) return null;
     final session =
         AuthSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-    ref.read(apiClientProvider).token = session.token;
+    client.token = session.token;
+    client.refreshToken = session.refreshToken;
     return session;
   }
 
@@ -49,18 +79,23 @@ class AuthController extends AsyncNotifier<AuthSession?> {
   }
 
   Future<void> signOut() async {
+    // Отзываем refresh-токен на сервере (best-effort).
+    final refresh = state.value?.refreshToken;
+    if (refresh != null) {
+      await ref.read(authApiProvider).logout(refresh);
+    }
     await _storage.delete(key: _key);
-    ref.read(apiClientProvider).token = null;
+    final client = ref.read(apiClientProvider);
+    client.token = null;
+    client.refreshToken = null;
     state = const AsyncData(null);
   }
 
   Future<void> _persist(AuthSession s) async {
-    ref.read(apiClientProvider).token = s.token;
-    await _storage.write(
-      key: _key,
-      value: jsonEncode(
-          {'token': s.token, 'userId': s.userId, 'email': s.email}),
-    );
+    final client = ref.read(apiClientProvider);
+    client.token = s.token;
+    client.refreshToken = s.refreshToken;
+    await _storage.write(key: _key, value: jsonEncode(s.toJson()));
     state = AsyncData(s);
   }
 }

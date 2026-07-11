@@ -1,5 +1,6 @@
 import '../core/health_metric.dart' show HealthMetric;
 import '../core/health_status.dart';
+import '../core/metric_source.dart';
 
 /// Одно «последнее» значение показателя для отображения на дашборде.
 class MetricReading {
@@ -27,9 +28,17 @@ class MetricReading {
   /// Время измерения (конец интервала).
   final DateTime time;
 
-  /// Откуда пришли данные (имя приложения/устройства), если известно.
-  final String? source;
+  /// Откуда пришли данные (хранилище здоровья, кольцо и т.д.), если известно.
+  final MetricSource? source;
 
   /// Оценка по нормам, рассчитанная на бэкенде.
   final HealthStatus status;
+}
+
+/// Из двух чтений выбирает более свежее по времени измерения; null проигрывает
+/// всегда, при равенстве побеждает [b] (живой источник передают вторым).
+MetricReading? preferFresher(MetricReading? a, MetricReading? b) {
+  if (a == null) return b;
+  if (b == null) return a;
+  return a.time.isAfter(b.time) ? a : b;
 }

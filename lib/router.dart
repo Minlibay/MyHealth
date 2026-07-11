@@ -10,6 +10,7 @@ import 'features/metric_detail/metric_detail_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/ring/ring_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/workouts/workouts_screen.dart';
 import 'providers.dart';
 
 /// Роутер приложения. До получения согласия (GDPR) пускает только на /consent.
@@ -46,6 +47,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/ring', builder: (_, _) => const RingScreen()),
+      GoRoute(path: '/workouts', builder: (_, _) => const WorkoutsScreen()),
       GoRoute(
         path: '/metric/:name',
         builder: (_, state) {

@@ -6,10 +6,13 @@ import 'package:intl/intl.dart';
 
 import '../../core/health_metric.dart';
 import '../../data/health_repository.dart';
+import '../../data/metric_reading.dart';
 import '../../data/ring/ring_capture.dart';
 import '../../data/ring/ring_models.dart';
 import '../../data/ring/ring_providers.dart';
 import '../../providers.dart';
+import '../manual_entry/manual_entry_sheet.dart';
+import 'insights_card.dart';
 import 'metric_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -98,7 +101,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildDashboard() {
     final readings = ref.watch(readingsProvider);
     final cloudMode = ref.watch(cloudModeProvider);
-    // Живые значения с кольца перекрывают базовый источник для своих показателей.
+    // Живые значения с кольца перекрывают базовый источник,
+    // только если они свежее по времени измерения.
     final ringMap = ref.watch(ringCaptureProvider);
     return RefreshIndicator(
       onRefresh: () async {
@@ -114,6 +118,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             parent: BouncingScrollPhysics()),
         slivers: [
           const SliverToBoxAdapter(child: _Header()),
+          const SliverToBoxAdapter(child: InsightsCard()),
+          const SliverToBoxAdapter(child: _WorkoutsTile()),
           readings.when(
             loading: () => const SliverFillRemaining(
                 hasScrollBody: false,
@@ -136,7 +142,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     final metric = HealthMetric.values[i];
                     return MetricCard(
                       metric: metric,
-                      reading: ringMap[metric] ?? map[metric],
+                      reading: preferFresher(map[metric], ringMap[metric]),
                       onTap: () => context.push('/metric/${metric.name}'),
                     )
                         .animate()
@@ -204,10 +210,52 @@ class _Header extends ConsumerWidget {
           ),
           IconButton.filledTonal(
             iconSize: 22,
+            onPressed: () => showManualEntrySheet(context),
+            icon: const Icon(Icons.add_rounded),
+          ),
+          const SizedBox(width: 6),
+          IconButton.filledTonal(
+            iconSize: 22,
             onPressed: () => context.push('/settings'),
             icon: const Icon(Icons.settings_rounded),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Тайл «Тренировки»: количество за неделю и переход к списку.
+class _WorkoutsTile extends ConsumerWidget {
+  const _WorkoutsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final count = ref.watch(workoutsProvider(7)).value?.length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          leading: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.fitness_center_rounded,
+                color: theme.colorScheme.primary, size: 22),
+          ),
+          title: const Text('Тренировки'),
+          subtitle: Text(count == null
+              ? 'За неделю'
+              : 'За неделю: $count'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => context.push('/workouts'),
+        ),
       ),
     );
   }

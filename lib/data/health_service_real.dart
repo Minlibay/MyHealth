@@ -3,15 +3,32 @@ import 'dart:io' show Platform;
 import 'package:health/health.dart';
 
 import '../core/health_metric.dart';
+import '../core/metric_source.dart';
 import 'health_repository.dart';
 import 'metric_reading.dart';
 import 'metric_sample.dart';
+import 'workout.dart';
 
 /// Фабрика для условного импорта (см. health_repository_factory.dart).
 HealthRepository createHealthRepository() => RealHealthService();
 
+/// Типы сна различаются по платформам: SLEEP_SESSION есть только в
+/// Health Connect, а HealthKit пишет сон сегментами по фазам
+/// (SLEEP_LIGHT здесь = asleepCore). SLEEP_ASLEEP и SLEEP_SESSION вместе
+/// на Android нельзя — сессия уже включает фазы, будет двойной счёт.
+final List<HealthDataType> _sleepTypes = Platform.isIOS
+    ? [
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_LIGHT,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_REM,
+      ]
+    : [HealthDataType.SLEEP_SESSION];
+
 /// Маппинг показателей приложения на типы HealthKit / Health Connect.
-const Map<HealthMetric, List<HealthDataType>> _typeMap = {
+/// Дистанция и HRV имеют разные типы на платформах (SDNN на iOS,
+/// RMSSD на Android — значения между платформами не сравниваются напрямую).
+final Map<HealthMetric, List<HealthDataType>> _typeMap = {
   HealthMetric.steps: [HealthDataType.STEPS],
   HealthMetric.heartRate: [HealthDataType.HEART_RATE],
   HealthMetric.bloodPressure: [
@@ -19,14 +36,54 @@ const Map<HealthMetric, List<HealthDataType>> _typeMap = {
     HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
   ],
   HealthMetric.weight: [HealthDataType.WEIGHT],
-  HealthMetric.sleep: [HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_SESSION],
+  HealthMetric.sleep: _sleepTypes,
   HealthMetric.bloodGlucose: [HealthDataType.BLOOD_GLUCOSE],
   HealthMetric.bloodOxygen: [HealthDataType.BLOOD_OXYGEN],
+  HealthMetric.activeEnergy: [HealthDataType.ACTIVE_ENERGY_BURNED],
+  HealthMetric.distance: Platform.isIOS
+      ? [HealthDataType.DISTANCE_WALKING_RUNNING]
+      : [HealthDataType.DISTANCE_DELTA],
+  HealthMetric.water: [HealthDataType.WATER],
+  HealthMetric.bodyTemperature: [HealthDataType.BODY_TEMPERATURE],
+  HealthMetric.respiratoryRate: [HealthDataType.RESPIRATORY_RATE],
+  HealthMetric.restingHeartRate: [HealthDataType.RESTING_HEART_RATE],
+  HealthMetric.hrv: Platform.isIOS
+      ? [HealthDataType.HEART_RATE_VARIABILITY_SDNN]
+      : [HealthDataType.HEART_RATE_VARIABILITY_RMSSD],
+  HealthMetric.bodyFat: [HealthDataType.BODY_FAT_PERCENTAGE],
+  HealthMetric.height: [HealthDataType.HEIGHT],
 };
+
+/// Накопительные показатели: осмыслена суточная сумма, а не последняя запись.
+/// Шаги обрабатываются отдельно через getTotalStepsInInterval.
+const Set<HealthMetric> _dailySumMetrics = {
+  HealthMetric.activeEnergy,
+  HealthMetric.distance,
+  HealthMetric.water,
+};
+
+/// Приведение сырого значения к единицам приложения:
+/// метры → км/см, доля жира на iOS → проценты.
+double _convertValue(HealthMetric metric, double v) => switch (metric) {
+      HealthMetric.distance => v / 1000,
+      HealthMetric.height => v * 100,
+      // HealthKit может отдавать долю (0.18 = 18%), Health Connect — проценты.
+      HealthMetric.bodyFat => v <= 1 ? v * 100 : v,
+      _ => v,
+    };
 
 final List<HealthDataType> _allTypes = {
   for (final list in _typeMap.values) ...list,
+  HealthDataType.WORKOUT,
 }.toList();
+
+/// Хранилище платформы: Apple Health бывает только на iOS,
+/// Health Connect — только на Android.
+final MetricSourceType _storeType =
+    Platform.isIOS ? MetricSourceType.appleHealth : MetricSourceType.healthConnect;
+
+/// Источник «хранилище платформы + приложение/устройство, записавшее данные».
+MetricSource _storeSource([String? detail]) => MetricSource(_storeType, detail);
 
 /// Реальная реализация поверх пакета `health`.
 class RealHealthService implements HealthRepository {
@@ -123,7 +180,30 @@ class RealHealthService implements HealthRepository {
           metric: metric,
           displayValue: '$total',
           value: total.toDouble(),
-          time: to);
+          time: to,
+          source: _storeSource());
+    }
+
+    // Накопительные показатели — сумма за сегодня.
+    if (_dailySumMetrics.contains(metric)) {
+      final startOfDay = DateTime(to.year, to.month, to.day);
+      final points = await _health.getHealthDataFromTypes(
+        types: types,
+        startTime: startOfDay,
+        endTime: to,
+      );
+      if (points.isEmpty) return null;
+      var total = 0.0;
+      for (final p in points) {
+        total += _convertValue(metric, _rawNum(p));
+      }
+      return MetricReading(
+        metric: metric,
+        displayValue: _fmt(total),
+        value: total,
+        time: to,
+        source: _storeSource(),
+      );
     }
 
     final points = await _health.getHealthDataFromTypes(
@@ -149,30 +229,38 @@ class RealHealthService implements HealthRepository {
         value: _rawNum(sys),
         secondary: _rawNum(dia),
         time: sys.dateTo,
-        source: sys.sourceName,
+        source: _storeSource(sys.sourceName),
       );
     }
 
     final latest = points.first;
 
-    // Сон приходит в минутах — показываем в часах.
+    // Сон приходит сегментами в минутах — суммируем последнюю ночь
+    // и показываем в часах. Окно 18 часов от конца последнего сегмента
+    // покрывает всю ночь, но не захватывает предыдущую (~24 ч назад).
     if (metric == HealthMetric.sleep) {
-      final hours = _rawNum(latest) / 60;
+      final nightStart = latest.dateTo.subtract(const Duration(hours: 18));
+      var minutes = 0.0;
+      for (final p in points) {
+        if (!p.dateTo.isBefore(nightStart)) minutes += _rawNum(p);
+      }
+      final hours = minutes / 60;
       return MetricReading(
         metric: metric,
         displayValue: hours.toStringAsFixed(1),
         value: hours,
         time: latest.dateTo,
-        source: latest.sourceName,
+        source: _storeSource(latest.sourceName),
       );
     }
 
+    final value = _convertValue(metric, _rawNum(latest));
     return MetricReading(
       metric: metric,
-      displayValue: _num(latest),
-      value: _rawNum(latest),
+      displayValue: _fmt(value),
+      value: value,
       time: latest.dateTo,
-      source: latest.sourceName,
+      source: _storeSource(latest.sourceName),
     );
   }
 
@@ -188,7 +276,8 @@ class RealHealthService implements HealthRepository {
         final start = DateTime(now.year, now.month, now.day - i);
         final end = start.add(const Duration(days: 1));
         final total = await _health.getTotalStepsInInterval(start, end);
-        samples.add(MetricSample(time: start, value: (total ?? 0).toDouble()));
+        samples.add(MetricSample(
+            time: start, value: (total ?? 0).toDouble(), source: _storeSource()));
       }
       return samples;
     }
@@ -214,6 +303,7 @@ class RealHealthService implements HealthRepository {
           MetricSample(
             time: s.dateTo,
             value: _rawNum(s),
+            source: _storeSource(s.sourceName),
             secondary: dia.isEmpty
                 ? null
                 : _rawNum(dia.reduce((a, b) =>
@@ -225,20 +315,74 @@ class RealHealthService implements HealthRepository {
       ];
     }
 
+    // Накопительные показатели: суммы по календарным дням.
+    if (_dailySumMetrics.contains(metric)) {
+      final byDay = <DateTime, double>{};
+      for (final p in points) {
+        final day = DateTime(p.dateTo.year, p.dateTo.month, p.dateTo.day);
+        byDay[day] = (byDay[day] ?? 0) + _convertValue(metric, _rawNum(p));
+      }
+      final sortedDays = byDay.keys.toList()..sort();
+      return [
+        for (final d in sortedDays)
+          MetricSample(time: d, value: byDay[d]!, source: _storeSource()),
+      ];
+    }
+
+    // Сон: суммируем сегменты по ночам (ночь относим к дате пробуждения),
+    // в часах для единообразия с дашбордом.
+    if (metric == HealthMetric.sleep) {
+      final byDay = <DateTime, double>{};
+      for (final p in points) {
+        final day = DateTime(p.dateTo.year, p.dateTo.month, p.dateTo.day);
+        byDay[day] = (byDay[day] ?? 0) + _rawNum(p);
+      }
+      final sortedDays = byDay.keys.toList()..sort();
+      return [
+        for (final d in sortedDays)
+          MetricSample(time: d, value: byDay[d]! / 60, source: _storeSource()),
+      ];
+    }
+
     return [
       for (final p in points)
         MetricSample(
-          time: p.dateTo,
-          // Сон храним в часах для единообразия с дашбордом.
-          value: metric == HealthMetric.sleep ? _rawNum(p) / 60 : _rawNum(p),
-        ),
+            time: p.dateTo,
+            value: _convertValue(metric, _rawNum(p)),
+            source: _storeSource(p.sourceName)),
     ];
   }
 
-  String _num(HealthDataPoint p) {
-    final v = _rawNum(p);
-    return v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
+  @override
+  Future<List<Workout>> fetchWorkouts({int days = 30}) async {
+    await _ensureConfigured();
+    final now = DateTime.now();
+    final points = await _health.getHealthDataFromTypes(
+      types: [HealthDataType.WORKOUT],
+      startTime: now.subtract(Duration(days: days)),
+      endTime: now,
+    );
+    final workouts = <Workout>[];
+    for (final p in points) {
+      final v = p.value;
+      if (v is! WorkoutHealthValue) continue;
+      workouts.add(Workout(
+        activityType: v.workoutActivityType.name,
+        start: p.dateFrom,
+        end: p.dateTo,
+        energyKcal: v.totalEnergyBurned?.toDouble(),
+        distanceMeters: v.totalDistance?.toDouble(),
+        source: _storeSource(p.sourceName),
+      ));
+    }
+    workouts.sort((a, b) => b.start.compareTo(a.start));
+    return workouts;
   }
+
+  String _num(HealthDataPoint p) => _fmt(_rawNum(p));
+
+  String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
   double _rawNum(HealthDataPoint p) {
     final value = p.value;
