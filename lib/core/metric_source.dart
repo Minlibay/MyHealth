@@ -5,6 +5,7 @@ enum MetricSourceType {
   appleHealth('apple_health', 'Apple Health'),
   healthConnect('health_connect', 'Health Connect'),
   ring('ring', 'Кольцо'),
+  manual('manual', 'Ручной ввод'),
   demo('demo', 'Демо'),
   other('other', 'Другой источник');
 
@@ -24,6 +25,7 @@ class MetricSource {
   const MetricSource(this.type, [this.detail]);
 
   static const ring = MetricSource(MetricSourceType.ring, 'JCRing X3');
+  static const manual = MetricSource(MetricSourceType.manual);
   static const demo = MetricSource(MetricSourceType.demo);
 
   final MetricSourceType type;

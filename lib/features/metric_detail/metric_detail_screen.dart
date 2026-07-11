@@ -9,6 +9,7 @@ import '../../data/metric_sample.dart';
 import '../../data/ring/ring_capture.dart';
 import '../../features/dashboard/status_pill.dart';
 import '../../providers.dart';
+import 'hypnogram_card.dart';
 import 'metric_chart.dart';
 
 class MetricDetailScreen extends ConsumerStatefulWidget {
@@ -69,6 +70,11 @@ class _MetricDetailScreenState extends ConsumerState<MetricDetailScreen> {
                 ],
               );
             }),
+          ],
+          // Гипнограмма — только для сна, когда есть сессия с фазами.
+          if (metric == HealthMetric.sleep) ...[
+            const SizedBox(height: 14),
+            const HypnogramCard(),
           ],
           const SizedBox(height: 20),
           Center(

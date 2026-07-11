@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../data/auth/auth_controller.dart';
 import '../../providers.dart';
@@ -132,6 +135,27 @@ class SettingsScreen extends ConsumerWidget {
                     'отправляются только при синхронизации после входа.',
                   ),
                 ),
+                if (auth.value != null) ...[
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: Icon(Icons.download_rounded,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Экспортировать мои данные'),
+                    subtitle: const Text(
+                        'Полная выгрузка всех данных с сервера в JSON (GDPR).'),
+                    onTap: () => _exportData(context, ref),
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: Icon(Icons.person_remove_outlined,
+                        color: theme.colorScheme.error),
+                    title: Text('Удалить аккаунт и данные на сервере',
+                        style: TextStyle(color: theme.colorScheme.error)),
+                    subtitle: const Text(
+                        'Безвозвратно удаляет аккаунт и все данные в облаке.'),
+                    onTap: () => _confirmDeleteAccount(context, ref),
+                  ),
+                ],
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
                   leading: Icon(Icons.delete_outline_rounded,
@@ -162,6 +186,74 @@ class SettingsScreen extends ConsumerWidget {
             ? 'Синхронизировано новых записей: ${st.inserted}'
             : 'Уже всё синхронизировано';
     messenger.showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _exportData(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final json = await ref.read(userApiProvider).exportData();
+      await SharePlus.instance.share(ShareParams(
+        files: [
+          XFile.fromData(
+            Uint8List.fromList(json.codeUnits),
+            mimeType: 'application/json',
+            name: 'myhealth_export.json',
+          ),
+        ],
+        fileNameOverrides: ['myhealth_export.json'],
+      ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Ошибка экспорта: $e')));
+    }
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final passwordCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить аккаунт?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Все данные на сервере будут безвозвратно удалены. '
+              'Введите пароль для подтверждения.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: passwordCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Пароль',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Отмена')),
+          FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Удалить навсегда')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(userApiProvider).deleteAccount(passwordCtrl.text);
+      await ref.read(authControllerProvider.notifier).signOut();
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Аккаунт и данные удалены.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   Future<void> _confirmRevoke(BuildContext context, WidgetRef ref) async {

@@ -11,6 +11,8 @@ import '../../data/ring/ring_capture.dart';
 import '../../data/ring/ring_models.dart';
 import '../../data/ring/ring_providers.dart';
 import '../../providers.dart';
+import '../manual_entry/manual_entry_sheet.dart';
+import 'insights_card.dart';
 import 'metric_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -116,6 +118,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             parent: BouncingScrollPhysics()),
         slivers: [
           const SliverToBoxAdapter(child: _Header()),
+          const SliverToBoxAdapter(child: InsightsCard()),
           const SliverToBoxAdapter(child: _WorkoutsTile()),
           readings.when(
             loading: () => const SliverFillRemaining(
@@ -205,6 +208,12 @@ class _Header extends ConsumerWidget {
               ],
             ),
           ),
+          IconButton.filledTonal(
+            iconSize: 22,
+            onPressed: () => showManualEntrySheet(context),
+            icon: const Icon(Icons.add_rounded),
+          ),
+          const SizedBox(width: 6),
           IconButton.filledTonal(
             iconSize: 22,
             onPressed: () => context.push('/settings'),

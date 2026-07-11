@@ -22,9 +22,29 @@ class MainActivity : FlutterFragmentActivity() {
             when (call.method) {
                 "startScan" -> { ble.startScan(); result.success(null) }
                 "stopScan" -> { ble.stopScan(); result.success(null) }
-                "connect" -> { ble.connect(call.argument<String>("id")!!); result.success(null) }
+                "connect" -> {
+                    ble.connect(
+                        call.argument<String>("id")!!,
+                        call.argument<Boolean>("auto") ?: false,
+                    )
+                    result.success(null)
+                }
                 "disconnect" -> { ble.disconnect(); result.success(null) }
                 "measure" -> { ble.measure(); result.success(null) }
+                "syncHistory" -> { ble.syncHistory(); result.success(null) }
+                "setProfile" -> {
+                    ble.setProfile(
+                        call.argument<Int>("gender") ?: 1,
+                        call.argument<Int>("age") ?: 30,
+                        call.argument<Int>("height") ?: 175,
+                        call.argument<Int>("weight") ?: 70,
+                    )
+                    result.success(null)
+                }
+                "enableAutoMonitoring" -> {
+                    ble.enableAutoMonitoring(call.argument<Int>("intervalMinutes") ?: 15)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }

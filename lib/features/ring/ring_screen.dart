@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:intl/intl.dart';
+
+import '../../data/ring/ring_connection.dart';
 import '../../data/ring/ring_models.dart';
 import '../../data/ring/ring_providers.dart';
 import '../../data/ring/ring_service.dart';
+import '../../data/ring/ring_sync.dart';
 
 class RingScreen extends ConsumerWidget {
   const RingScreen({super.key});
@@ -74,7 +78,10 @@ class RingScreen extends ConsumerWidget {
                 title: Text(d.name),
                 subtitle: Text(d.id),
                 trailing: d.rssi != null ? Text('${d.rssi} dBm') : null,
-                onTap: () => service.connect(d.id),
+                // Запоминаем кольцо — при следующем запуске подключимся сами.
+                onTap: () => ref
+                    .read(ringConnectionControllerProvider.notifier)
+                    .connectAndRemember(d),
               ),
             )),
     ];
@@ -138,12 +145,68 @@ class RingScreen extends ConsumerWidget {
         label: const Text('Измерить сейчас'),
       ),
       const SizedBox(height: 8),
+      _HistorySyncButton(ref: ref),
+      const SizedBox(height: 8),
       OutlinedButton.icon(
-        onPressed: service.disconnect,
+        // «Отключить» = забыть кольцо: автоподключение прекращается.
+        onPressed: () =>
+            ref.read(ringConnectionControllerProvider.notifier).forget(),
         icon: const Icon(Icons.bluetooth_disabled),
         label: const Text('Отключить'),
       ),
     ];
+  }
+}
+
+/// Кнопка выкачивания истории с кольца + статус последней синхронизации.
+class _HistorySyncButton extends StatelessWidget {
+  const _HistorySyncButton({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sync = ref.watch(ringSyncProvider);
+    final syncing = sync.phase == RingSyncPhase.syncing;
+
+    final subtitle = switch (sync.phase) {
+      RingSyncPhase.syncing => 'Выкачиваем историю с кольца…',
+      RingSyncPhase.done =>
+        'Записей: ${sync.records} · ${DateFormat.Hm().format(sync.at!)}',
+      RingSyncPhase.error => 'Ошибка: ${sync.message}',
+      RingSyncPhase.idle => null,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.tonalIcon(
+          onPressed: syncing
+              ? null
+              : () => ref.read(ringSyncProvider.notifier).syncNow(),
+          icon: syncing
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.history_rounded),
+          label: const Text('Синхронизировать историю'),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: sync.phase == RingSyncPhase.error
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.outline,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 

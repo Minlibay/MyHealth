@@ -4,6 +4,16 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Фоновая синхронизация (workmanager, BGTaskScheduler). -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.myhealth.bgSync</string>
+	</array>
 	<!-- HealthKit: обоснование доступа. Без этих строк Apple отклонит сборку. -->
 	<key>NSHealthShareUsageDescription</key>
 	<string>Приложению нужен доступ для чтения ваших медицинских показателей (шаги, пульс, давление, вес, сон, глюкоза, SpO₂), чтобы отображать их. Данные хранятся только на устройстве.</string>

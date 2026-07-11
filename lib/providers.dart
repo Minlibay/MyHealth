@@ -7,8 +7,10 @@ import 'data/api/api_health_repository.dart';
 import 'data/auth/auth_controller.dart';
 import 'data/health_repository.dart';
 import 'data/health_repository_factory.dart';
+import 'data/insights.dart';
 import 'data/metric_reading.dart';
 import 'data/metric_sample.dart';
+import 'data/sleep_session.dart';
 import 'data/workout.dart';
 
 /// Источник данных устройства: фейковый на Web, реальный (HealthKit/Health
@@ -135,6 +137,20 @@ final workoutsProvider = FutureProvider.family<List<Workout>, int>((ref, days) {
   return ref.watch(activeRepositoryProvider).fetchWorkouts(days: days);
 });
 
+/// Инсайты (скоры, базовые линии, тренды) — считает бэкенд.
+/// Доступны только в облачном режиме.
+final insightsProvider = FutureProvider<Insights?>((ref) async {
+  if (!ref.watch(cloudModeProvider)) return null;
+  return ref.watch(insightsApiProvider).fetch();
+});
+
+/// Сессии сна с фазами с сервера (облачный режим).
+final sleepSessionsProvider =
+    FutureProvider.family<List<SleepSessionModel>, int>((ref, days) async {
+  if (!ref.watch(cloudModeProvider)) return const [];
+  return ref.watch(sleepApiProvider).fetchSessions(days: days);
+});
+
 /// Фаза синхронизации с сервером.
 enum SyncPhase { idle, syncing, synced, error }
 
@@ -171,6 +187,8 @@ class SyncController extends Notifier<SyncStatus> {
       ref.invalidate(readingsProvider);
       ref.invalidate(metricSeriesProvider);
       ref.invalidate(workoutsProvider);
+      ref.invalidate(insightsProvider);
+      ref.invalidate(sleepSessionsProvider);
     } catch (e) {
       state = SyncStatus(SyncPhase.error, at: DateTime.now(), message: '$e');
     }

@@ -27,6 +27,18 @@ class AuthApi {
     return AuthSession.fromJson(res);
   }
 
+  /// Отзыв refresh-токена на сервере (выход). Ошибки сети игнорируются —
+  /// локальная сессия удаляется в любом случае.
+  Future<void> logout(String refreshToken) async {
+    if (refreshToken.isEmpty) return;
+    try {
+      await _client.dio
+          .post('/api/auth/logout', data: {'refreshToken': refreshToken});
+    } on DioException {
+      // ignore
+    }
+  }
+
   Future<Map<String, dynamic>> _post(String path, Object body) async {
     try {
       final r = await _client.dio.post(path, data: body);
