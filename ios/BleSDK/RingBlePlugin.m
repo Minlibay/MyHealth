@@ -47,6 +47,10 @@ static const NSTimeInterval kWriteSpacing = 0.15;
 @property(nonatomic, strong) NSMutableArray<RingHistoryKind *> *historyQueue;
 @property(nonatomic, strong, nullable) RingHistoryKind *currentKind;
 @property(nonatomic, assign) NSInteger historyGeneration;
+
+// CBCentralManager включается асинхронно: команды до poweredOn откладываем.
+@property(nonatomic, assign) BOOL pendingScan;
+@property(nonatomic, copy, nullable) NSString *pendingConnectId;
 @end
 
 @implementation RingBlePlugin
@@ -133,7 +137,19 @@ static const NSTimeInterval kWriteSpacing = 0.15;
 
 - (void)startScan {
     [self.found removeAllObjects];
-    if (self.central.state != CBManagerStatePoweredOn) { [self emitState:@"failed"]; return; }
+    if (self.central.state != CBManagerStatePoweredOn) {
+        // Bluetooth выключен/запрещён — это настоящая ошибка. Состояния
+        // unknown/resetting — стек ещё включается: подождём poweredOn.
+        if (self.central.state == CBManagerStatePoweredOff ||
+            self.central.state == CBManagerStateUnauthorized ||
+            self.central.state == CBManagerStateUnsupported) {
+            [self emitState:@"failed"];
+        } else {
+            self.pendingScan = YES;
+            [self emitState:@"scanning"];
+        }
+        return;
+    }
     [self emitState:@"scanning"];
     [self.central scanForPeripheralsWithServices:nil options:nil];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(12 * NSEC_PER_SEC)),
@@ -141,6 +157,13 @@ static const NSTimeInterval kWriteSpacing = 0.15;
 }
 
 - (void)connect:(NSString *)deviceId {
+    if (self.central.state != CBManagerStatePoweredOn) {
+        // Автоподключение при старте приложения: стек ещё включается —
+        // подключимся из centralManagerDidUpdateState.
+        self.pendingConnectId = deviceId;
+        [self emitState:@"connecting"];
+        return;
+    }
     [self.central stopScan];
     CBPeripheral *p = self.found[deviceId];
     if (!p) {
@@ -300,7 +323,24 @@ static const NSTimeInterval kWriteSpacing = 0.15;
 
 #pragma mark - CBCentralManagerDelegate
 
-- (void)centralManagerDidUpdateState:(CBCentralManager *)central {}
+- (void)centralManagerDidUpdateState:(CBCentralManager *)central {
+    if (central.state == CBManagerStatePoweredOn) {
+        NSString *connectId = self.pendingConnectId;
+        self.pendingConnectId = nil;
+        if (connectId) [self connect:connectId];
+        if (self.pendingScan) {
+            self.pendingScan = NO;
+            [self startScan];
+        }
+    } else if (central.state == CBManagerStatePoweredOff ||
+               central.state == CBManagerStateUnauthorized) {
+        // Отложенный скан больше не выполнится — сообщаем об ошибке.
+        if (self.pendingScan) {
+            self.pendingScan = NO;
+            [self emitState:@"failed"];
+        }
+    }
+}
 
 /// Показываем только кольца Jstyle: устройство либо рекламирует сервис
 /// fff0, либо его имя похоже на кольцо — иначе в списке все BLE-устройства.

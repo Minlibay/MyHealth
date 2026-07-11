@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -38,13 +39,17 @@ class RingScreen extends ConsumerWidget {
   }
 
   Future<void> _scan(RingService service) async {
-    // На мобильных запрашиваем BLE-разрешения; на вебе пропускаем.
+    // BLE-разрешения различаются по платформам; на вебе пропускаем.
     if (!kIsWeb) {
-      await [
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-        Permission.locationWhenInUse,
-      ].request();
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await [
+          Permission.bluetoothScan,
+          Permission.bluetoothConnect,
+          Permission.locationWhenInUse, // нужно только до Android 12
+        ].request();
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await Permission.bluetooth.request();
+      }
     }
     await service.startScan();
   }
