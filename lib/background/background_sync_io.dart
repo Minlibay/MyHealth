@@ -34,13 +34,20 @@ void callbackDispatcher() {
       final device = createHealthRepository();
       final metricsApi = MetricsApi(client);
       // Короткое окно: фоновая задача ходит часто, глубину добирает
-      // ручная синхронизация из приложения.
+      // ручная синхронизация из приложения. Запросить разрешения из фона
+      // нельзя — недоступные метрики просто пропускаем.
       for (final metric in HealthMetric.values) {
-        final series = await device.fetchSeries(metric, days: 7);
-        await metricsApi.uploadSamples(metric, series);
+        try {
+          final series = await device.fetchSeries(metric, days: 7);
+          await metricsApi.uploadSamples(metric, series);
+        } catch (_) {
+          continue;
+        }
       }
-      final workouts = await device.fetchWorkouts(days: 7);
-      await WorkoutsApi(client).uploadWorkouts(workouts);
+      try {
+        final workouts = await device.fetchWorkouts(days: 7);
+        await WorkoutsApi(client).uploadWorkouts(workouts);
+      } catch (_) {}
       return true;
     } catch (_) {
       // false → WorkManager повторит задачу по своей политике.

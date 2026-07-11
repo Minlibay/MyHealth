@@ -174,13 +174,30 @@ class SyncController extends Notifier<SyncStatus> {
     try {
       final device = ref.read(deviceRepositoryProvider);
       final api = ref.read(metricsApiProvider);
+      // В облачном режиме гейтинг разрешений на дашборде пропускается,
+      // а чтение HealthKit без выданного доступа бросает
+      // "Authorization not determined" — запрашиваем перед синхронизацией
+      // (если доступ уже выдан, iOS/Android ничего не показывают).
+      try {
+        await device.requestPermissions();
+      } catch (_) {}
       var total = 0;
       for (final metric in HealthMetric.values) {
-        final series = await device.fetchSeries(metric, days: 30);
+        // Одна недоступная метрика (нет разрешения/типа на платформе)
+        // не должна отменять синхронизацию остальных.
+        final List<MetricSample> series;
+        try {
+          series = await device.fetchSeries(metric, days: 30);
+        } catch (_) {
+          continue;
+        }
         total += await api.uploadSamples(metric, series);
       }
       // Тренировки выгружаются вместе с показателями.
-      final workouts = await device.fetchWorkouts(days: 30);
+      List<Workout> workouts = const [];
+      try {
+        workouts = await device.fetchWorkouts(days: 30);
+      } catch (_) {}
       total += await ref.read(workoutsApiProvider).uploadWorkouts(workouts);
       state = SyncStatus(SyncPhase.synced, at: DateTime.now(), inserted: total);
       // Обновляем облачные данные на дашборде.
