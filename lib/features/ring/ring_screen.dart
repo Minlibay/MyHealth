@@ -71,7 +71,41 @@ class RingScreen extends ConsumerWidget {
       RingConnState conn) {
     final scan = ref.watch(ringScanProvider).value ?? const [];
     final showAll = ref.watch(showAllDevicesProvider);
+    final saved = ref.watch(ringDevicesProvider).value;
     return [
+      // Сохранённые устройства: подключение в одно касание, без скана.
+      if (saved != null && saved.devices.isNotEmpty) ...[
+        Text('Мои устройства',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 8),
+        ...saved.devices.map((d) => Card(
+              child: ListTile(
+                leading: Icon(
+                  d.id == saved.activeId
+                      ? Icons.radio_button_checked
+                      : Icons.watch_rounded,
+                  color: d.id == saved.activeId
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                title: Text(d.name),
+                subtitle:
+                    Text(d.id == saved.activeId ? 'Активное' : 'Сохранено'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  tooltip: 'Забыть устройство',
+                  onPressed: () => ref
+                      .read(ringDevicesProvider.notifier)
+                      .forget(d.id),
+                ),
+                onTap: () => ref
+                    .read(ringDevicesProvider.notifier)
+                    .connectAndRemember(d),
+              ),
+            )),
+        const SizedBox(height: 16),
+      ],
       FilledButton.icon(
         onPressed: conn == RingConnState.scanning
             ? null
@@ -110,9 +144,10 @@ class RingScreen extends ConsumerWidget {
                 title: Text(d.name),
                 subtitle: Text(d.id),
                 trailing: d.rssi != null ? Text('${d.rssi} dBm') : null,
-                // Запоминаем кольцо — при следующем запуске подключимся сами.
+                // Запоминаем устройство — при следующем запуске
+                // подключимся сами.
                 onTap: () => ref
-                    .read(ringConnectionControllerProvider.notifier)
+                    .read(ringDevicesProvider.notifier)
                     .connectAndRemember(d),
               ),
             )),
@@ -180,9 +215,8 @@ class RingScreen extends ConsumerWidget {
       _HistorySyncButton(ref: ref),
       const SizedBox(height: 8),
       OutlinedButton.icon(
-        // «Отключить» = забыть кольцо: автоподключение прекращается.
-        onPressed: () =>
-            ref.read(ringConnectionControllerProvider.notifier).forget(),
+        // Разрыв соединения; устройство остаётся в «Моих устройствах».
+        onPressed: service.disconnect,
         icon: const Icon(Icons.bluetooth_disabled),
         label: const Text('Отключить'),
       ),

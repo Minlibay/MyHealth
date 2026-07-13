@@ -11,6 +11,7 @@ import 'data/insights.dart';
 import 'data/metric_reading.dart';
 import 'data/metric_sample.dart';
 import 'data/sleep_session.dart';
+import 'data/sync_settings.dart';
 import 'data/workout.dart';
 
 /// Источник данных устройства: фейковый на Web, реальный (HealthKit/Health
@@ -172,33 +173,37 @@ class SyncController extends Notifier<SyncStatus> {
     if (state.phase == SyncPhase.syncing) return;
     state = const SyncStatus(SyncPhase.syncing);
     try {
-      final device = ref.read(deviceRepositoryProvider);
-      final api = ref.read(metricsApiProvider);
-      // В облачном режиме гейтинг разрешений на дашборде пропускается,
-      // а чтение HealthKit без выданного доступа бросает
-      // "Authorization not determined" — запрашиваем перед синхронизацией
-      // (если доступ уже выдан, iOS/Android ничего не показывают).
-      try {
-        await device.requestPermissions();
-      } catch (_) {}
       var total = 0;
-      for (final metric in HealthMetric.values) {
-        // Одна недоступная метрика (нет разрешения/типа на платформе)
-        // не должна отменять синхронизацию остальных.
-        final List<MetricSample> series;
+      // Выгрузку из хранилища платформы (Apple Health / Health Connect)
+      // можно выключить в настройках синхронизации.
+      if (ref.read(syncSettingsProvider).healthStore) {
+        final device = ref.read(deviceRepositoryProvider);
+        final api = ref.read(metricsApiProvider);
+        // В облачном режиме гейтинг разрешений на дашборде пропускается,
+        // а чтение HealthKit без выданного доступа бросает
+        // "Authorization not determined" — запрашиваем перед синхронизацией
+        // (если доступ уже выдан, iOS/Android ничего не показывают).
         try {
-          series = await device.fetchSeries(metric, days: 30);
-        } catch (_) {
-          continue;
+          await device.requestPermissions();
+        } catch (_) {}
+        for (final metric in HealthMetric.values) {
+          // Одна недоступная метрика (нет разрешения/типа на платформе)
+          // не должна отменять синхронизацию остальных.
+          final List<MetricSample> series;
+          try {
+            series = await device.fetchSeries(metric, days: 30);
+          } catch (_) {
+            continue;
+          }
+          total += await api.uploadSamples(metric, series);
         }
-        total += await api.uploadSamples(metric, series);
+        // Тренировки выгружаются вместе с показателями.
+        List<Workout> workouts = const [];
+        try {
+          workouts = await device.fetchWorkouts(days: 30);
+        } catch (_) {}
+        total += await ref.read(workoutsApiProvider).uploadWorkouts(workouts);
       }
-      // Тренировки выгружаются вместе с показателями.
-      List<Workout> workouts = const [];
-      try {
-        workouts = await device.fetchWorkouts(days: 30);
-      } catch (_) {}
-      total += await ref.read(workoutsApiProvider).uploadWorkouts(workouts);
       state = SyncStatus(SyncPhase.synced, at: DateTime.now(), inserted: total);
       // Обновляем облачные данные на дашборде.
       ref.invalidate(readingsProvider);

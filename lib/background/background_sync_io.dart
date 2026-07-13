@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../core/health_metric.dart';
@@ -9,6 +10,7 @@ import '../data/api/metrics_api.dart';
 import '../data/api/workouts_api.dart';
 import '../data/auth/auth_session.dart';
 import '../data/health_repository_factory.dart';
+import '../data/sync_settings.dart' show syncHealthStoreKey;
 
 const _syncTask = 'com.myhealth.bgSync';
 
@@ -18,6 +20,10 @@ const _syncTask = 'com.myhealth.bgSync';
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
+      // Настройки синхронизации: хранилище платформы можно выключить.
+      final prefs = await SharedPreferences.getInstance();
+      if (!(prefs.getBool(syncHealthStoreKey) ?? true)) return true;
+
       const storage = FlutterSecureStorage();
       final raw = await storage.read(key: 'auth_session_v1');
       if (raw == null) return true; // не вошли — синхронизировать нечего
