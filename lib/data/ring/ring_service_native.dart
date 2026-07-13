@@ -79,7 +79,8 @@ class RingServiceNative implements RingService {
   Stream<RingLiveData> get liveData => _data.stream;
 
   @override
-  Future<void> startScan() => _methods.invokeMethod('startScan');
+  Future<void> startScan({bool showAll = false}) =>
+      _methods.invokeMethod('startScan', {'showAll': showAll});
 
   @override
   Future<void> stopScan() => _methods.invokeMethod('stopScan');

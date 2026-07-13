@@ -29,7 +29,7 @@ class RingServiceFake implements RingService {
   Stream<RingLiveData> get liveData => _data.stream;
 
   @override
-  Future<void> startScan() async {
+  Future<void> startScan({bool showAll = false}) async {
     _state.add(RingConnState.scanning);
     _scanTimer?.cancel();
     _scanTimer = Timer(const Duration(milliseconds: 800), () {

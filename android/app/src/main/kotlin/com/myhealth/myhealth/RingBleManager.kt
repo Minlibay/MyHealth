@@ -97,24 +97,27 @@ class RingBleManager(private val context: Context) : EventChannel.StreamHandler 
     private fun emitState(state: String) = emit(mapOf("type" to "state", "state" to state))
 
     // --- Скан ---
+    /** true — показывать все устройства с именем (нестандартные имена Jstyle). */
+    private var showAllDevices = false
+
     /**
-     * Показываем только кольца Jstyle: устройство либо рекламирует сервис
-     * fff0, либо его имя похоже на кольцо. Иначе в списке оказываются все
-     * BLE-устройства вокруг (наушники, телевизоры и т.д.).
+     * Показываем устройства Jstyle (кольца и браслеты): либо рекламируется
+     * сервис fff0, либо имя похоже на носимое устройство. Иначе в списке
+     * оказываются все BLE-устройства вокруг (наушники, телевизоры и т.д.).
      */
-    private fun isRingDevice(result: ScanResult): Boolean {
+    private fun isWearableDevice(result: ScanResult): Boolean {
         val advertisesService = result.scanRecord?.serviceUuids
             ?.any { it.uuid == SERVICE } == true
         if (advertisesService) return true
         val name = (result.device.name ?: result.scanRecord?.deviceName ?: "").lowercase()
-        return name.contains("ring") || name.startsWith("jc") || name.startsWith("j-style") ||
-            name.startsWith("jstyle")
+        return listOf("ring", "jc", "jstyle", "j-style", "x3", "2301", "band", "bracelet", "smart")
+            .any { name.contains(it) }
     }
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val name = result.device.name ?: result.scanRecord?.deviceName ?: return
-            if (!isRingDevice(result)) return
+            if (!showAllDevices && !isWearableDevice(result)) return
             found[result.device.address] = result
             emit(
                 mapOf(
@@ -131,7 +134,8 @@ class RingBleManager(private val context: Context) : EventChannel.StreamHandler 
         }
     }
 
-    fun startScan() {
+    fun startScan(showAll: Boolean = false) {
+        showAllDevices = showAll
         val a = adapter
         if (a == null || !a.isEnabled) {
             emitState("failed"); return

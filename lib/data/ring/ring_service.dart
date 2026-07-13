@@ -13,7 +13,9 @@ abstract class RingService {
   /// Поток живых показателей.
   Stream<RingLiveData> get liveData;
 
-  Future<void> startScan();
+  /// [showAll] = true — показывать все BLE-устройства с именем, а не только
+  /// похожие на кольцо/браслет Jstyle (на случай нестандартного имени).
+  Future<void> startScan({bool showAll});
   Future<void> stopScan();
 
   /// [auto] = true — фоновое переподключение к известному устройству

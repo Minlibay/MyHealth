@@ -20,7 +20,10 @@ class MainActivity : FlutterFragmentActivity() {
 
         MethodChannel(messenger, "jcring_x3/methods").setMethodCallHandler { call, result ->
             when (call.method) {
-                "startScan" -> { ble.startScan(); result.success(null) }
+                "startScan" -> {
+                    ble.startScan(call.argument<Boolean>("showAll") ?: false)
+                    result.success(null)
+                }
                 "stopScan" -> { ble.stopScan(); result.success(null) }
                 "connect" -> {
                     ble.connect(
