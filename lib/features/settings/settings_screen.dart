@@ -1,11 +1,14 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/auth/auth_controller.dart';
+import '../../data/sync_settings.dart';
 import '../../providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -79,6 +82,46 @@ class SettingsScreen extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/ring'),
             ),
+          ),
+          const SizedBox(height: 24),
+          _SectionTitle('Синхронизация'),
+          Card(
+            child: Builder(builder: (context) {
+              final sync = ref.watch(syncSettingsProvider);
+              final storeName = switch (defaultTargetPlatform) {
+                TargetPlatform.iOS => 'Apple Health',
+                TargetPlatform.android => 'Health Connect',
+                _ => 'Хранилище здоровья',
+              };
+              return Column(
+                children: [
+                  SwitchListTile(
+                    secondary: Icon(Icons.favorite_outline_rounded,
+                        color: theme.colorScheme.primary),
+                    title: Text(storeName),
+                    subtitle: const Text(
+                        'Выгружать показатели и тренировки из хранилища '
+                        'платформы на сервер.'),
+                    value: sync.healthStore,
+                    onChanged: (v) => ref
+                        .read(syncSettingsProvider.notifier)
+                        .setHealthStore(v),
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  SwitchListTile(
+                    secondary: Icon(Icons.album_rounded,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Кольцо / браслет'),
+                    subtitle: const Text(
+                        'Выгружать историю с подключённого устройства '
+                        'на сервер.'),
+                    value: sync.ring,
+                    onChanged: (v) =>
+                        ref.read(syncSettingsProvider.notifier).setRing(v),
+                  ),
+                ],
+              );
+            }),
           ),
           const SizedBox(height: 24),
           _SectionTitle('Внешний вид'),

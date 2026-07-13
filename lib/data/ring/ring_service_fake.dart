@@ -71,10 +71,11 @@ class RingServiceFake implements RingService {
   Future<void> measure() async => _emit();
 
   @override
-  Future<RingHistory> fetchHistory() async {
+  Future<RingHistory> fetchHistory({String? deviceName}) async {
     await Future.delayed(const Duration(seconds: 2));
     final now = DateTime.now();
     final history = RingHistory();
+    final src = MetricSource(MetricSourceType.ring, deviceName ?? 'JCRing X3');
 
     for (var day = 6; day >= 0; day--) {
       final d = DateTime(now.year, now.month, now.day - day);
@@ -86,29 +87,29 @@ class RingServiceFake implements RingService {
             MetricSample(
                 time: t,
                 value: (58 + _rnd.nextInt(30)).toDouble(),
-                source: MetricSource.ring));
+                source: src));
         history.samples.putIfAbsent(HealthMetric.bloodOxygen, () => []).add(
             MetricSample(
                 time: t,
                 value: (95 + _rnd.nextInt(5)).toDouble(),
-                source: MetricSource.ring));
+                source: src));
         history.samples.putIfAbsent(HealthMetric.hrv, () => []).add(
             MetricSample(
                 time: t,
                 value: (35 + _rnd.nextInt(45)).toDouble(),
-                source: MetricSource.ring));
+                source: src));
       }
       // Суточная активность.
       history.samples.putIfAbsent(HealthMetric.steps, () => []).add(
           MetricSample(
               time: d,
               value: (5000 + _rnd.nextInt(6000)).toDouble(),
-              source: MetricSource.ring));
+              source: src));
       history.samples.putIfAbsent(HealthMetric.activeEnergy, () => []).add(
           MetricSample(
               time: d,
               value: (300 + _rnd.nextInt(350)).toDouble(),
-              source: MetricSource.ring));
+              source: src));
 
       // Ночь с фазами: отбой ~23:00, подъём ~7:00.
       final sleepStart =
@@ -136,7 +137,7 @@ class RingServiceFake implements RingService {
         start: sleepStart,
         end: cursor,
         stages: stages,
-        source: MetricSource.ring,
+        source: src,
       ));
     }
     history.sleepSessions.sort((a, b) => b.start.compareTo(a.start));

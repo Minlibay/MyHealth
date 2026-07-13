@@ -27,6 +27,11 @@ class RingHistory {
 /// различаются между Android- и iOS-версиями SDK, поэтому у каждого поля
 /// список ключей-кандидатов.
 class RingHistoryBuilder {
+  RingHistoryBuilder({this.source = MetricSource.ring});
+
+  /// Источник для всех записей (кольцо/браслет + имя устройства).
+  final MetricSource source;
+
   final _history = RingHistory();
 
   RingHistory build() {
@@ -85,7 +90,7 @@ class RingHistoryBuilder {
     final value = _num(r, keys);
     if (time == null || value == null || value <= 0) return;
     _add(metric,
-        MetricSample(time: time, value: value, source: MetricSource.ring));
+        MetricSample(time: time, value: value, source: source));
   }
 
   /// Суточные итоги активности: шаги, калории, дистанция (метры → км).
@@ -97,16 +102,16 @@ class RingHistoryBuilder {
     final distance = _num(r, ['distance']);
     if (steps != null && steps > 0) {
       _add(HealthMetric.steps,
-          MetricSample(time: time, value: steps, source: MetricSource.ring));
+          MetricSample(time: time, value: steps, source: source));
     }
     if (calories != null && calories > 0) {
       _add(HealthMetric.activeEnergy,
-          MetricSample(time: time, value: calories, source: MetricSource.ring));
+          MetricSample(time: time, value: calories, source: source));
     }
     if (distance != null && distance > 0) {
       // SDK отдаёт километры с двумя знаками (value/100 от сырых сотен метров).
       _add(HealthMetric.distance,
-          MetricSample(time: time, value: distance, source: MetricSource.ring));
+          MetricSample(time: time, value: distance, source: source));
     }
   }
 
@@ -130,7 +135,7 @@ class RingHistoryBuilder {
         MetricSample(
             time: time,
             value: double.parse(avg.toStringAsFixed(0)),
-            source: MetricSource.ring));
+            source: source));
   }
 
   /// Кодировка фаз в arraySleepQuality (конвенция Jstyle X3):
@@ -186,7 +191,7 @@ class RingHistoryBuilder {
       start: start,
       end: cursor,
       stages: stages,
-      source: MetricSource.ring,
+      source: source,
     ));
   }
 }

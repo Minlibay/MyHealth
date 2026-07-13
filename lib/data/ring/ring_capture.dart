@@ -7,6 +7,7 @@ import '../../core/metric_source.dart';
 import '../auth/auth_controller.dart';
 import '../metric_reading.dart';
 import '../metric_sample.dart';
+import 'ring_connection.dart';
 import 'ring_models.dart';
 import 'ring_providers.dart';
 
@@ -31,6 +32,11 @@ class RingCaptureController
   }
 
   Map<HealthMetric, MetricReading?> _toReadings(RingLiveData d) {
+    // Атрибуция по конкретному устройству (кольцо/браслет), если известно.
+    final deviceName = ref.read(ringDevicesProvider).value?.active?.name;
+    final source = deviceName == null
+        ? MetricSource.ring
+        : MetricSource(MetricSourceType.ring, deviceName);
     final map = <HealthMetric, MetricReading?>{};
     void put(HealthMetric metric, num? v) {
       if (v == null) return;
@@ -40,7 +46,7 @@ class RingCaptureController
         value: value,
         displayValue: formatMetricDisplay(metric, value, null),
         time: d.time,
-        source: MetricSource.ring,
+        source: source,
       );
     }
 

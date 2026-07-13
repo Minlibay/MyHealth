@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../../core/metric_source.dart';
 import 'ring_history.dart';
 import 'ring_models.dart';
 import 'ring_service.dart';
@@ -96,14 +97,15 @@ class RingServiceNative implements RingService {
   Future<void> measure() => _methods.invokeMethod('measure');
 
   @override
-  Future<RingHistory> fetchHistory() async {
+  Future<RingHistory> fetchHistory({String? deviceName}) async {
     // Повторный вызов во время выкачки возвращает тот же результат.
     final active = _historyCompleter;
     if (active != null) return active.future;
 
     final completer = Completer<RingHistory>();
     _historyCompleter = completer;
-    _historyBuilder = RingHistoryBuilder();
+    _historyBuilder = RingHistoryBuilder(
+        source: MetricSource(MetricSourceType.ring, deviceName ?? 'JCRing X3'));
     await _methods.invokeMethod('syncHistory');
     // Страховка: история семи типов с пагинацией не должна идти дольше 3 минут.
     return completer.future.timeout(const Duration(minutes: 3), onTimeout: () {

@@ -29,7 +29,8 @@ abstract class RingService {
 
   /// Выкачать накопленную историю с кольца (сон по фазам, пульс, HRV,
   /// SpO₂, температура, активность). Кольцо должно быть подключено.
-  Future<RingHistory> fetchHistory();
+  /// [deviceName] попадает в атрибуцию источника записей.
+  Future<RingHistory> fetchHistory({String? deviceName});
 
   /// Включить автозамеры на кольце (интервал в минутах) — без них
   /// история не накапливается.

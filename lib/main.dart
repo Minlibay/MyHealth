@@ -34,8 +34,8 @@ class MyHealthApp extends ConsumerWidget {
         ref.read(syncControllerProvider.notifier).syncNow();
       }
     });
-    // Автоподключение к сохранённому кольцу при старте приложения.
-    ref.watch(ringConnectionControllerProvider);
+    // Автоподключение к активному сохранённому устройству при старте.
+    ref.watch(ringDevicesProvider);
     // Контроллер живёт с запуска: ловит подключение кольца и сразу
     // включает автозамеры + выкачивает накопленную историю.
     ref.watch(ringSyncProvider);

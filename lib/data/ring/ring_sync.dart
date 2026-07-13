@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
+import '../sync_settings.dart';
+import 'ring_connection.dart';
 import 'ring_history.dart';
 import 'ring_models.dart';
 import 'ring_providers.dart';
@@ -61,9 +63,16 @@ class RingSyncController extends Notifier<RingSyncState> {
     if (state.phase == RingSyncPhase.syncing) return;
     state = const RingSyncState(RingSyncPhase.syncing);
     try {
-      final history = await ref.read(ringServiceProvider).fetchHistory();
+      final deviceName = ref.read(ringDevicesProvider).value?.active?.name;
+      final history = await ref
+          .read(ringServiceProvider)
+          .fetchHistory(deviceName: deviceName);
 
-      if (ref.read(cloudModeProvider) && !history.isEmpty) {
+      // Выгрузку с кольца можно выключить в настройках синхронизации;
+      // локально история (гипнограмма) остаётся доступной в любом случае.
+      if (ref.read(cloudModeProvider) &&
+          ref.read(syncSettingsProvider).ring &&
+          !history.isEmpty) {
         final api = ref.read(metricsApiProvider);
         for (final entry in history.samples.entries) {
           await api.uploadSamples(entry.key, entry.value);
