@@ -51,6 +51,9 @@ static const NSTimeInterval kWriteSpacing = 0.15;
 // CBCentralManager включается асинхронно: команды до poweredOn откладываем.
 @property(nonatomic, assign) BOOL pendingScan;
 @property(nonatomic, copy, nullable) NSString *pendingConnectId;
+
+// true — показывать все устройства с именем (нестандартные имена Jstyle).
+@property(nonatomic, assign) BOOL showAllDevices;
 @end
 
 @implementation RingBlePlugin
@@ -81,6 +84,9 @@ static const NSTimeInterval kWriteSpacing = 0.15;
 
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
     if ([call.method isEqualToString:@"startScan"]) {
+        NSDictionary *args = [call.arguments isKindOfClass:[NSDictionary class]]
+            ? call.arguments : @{};
+        self.showAllDevices = [args[@"showAll"] boolValue];
         [self startScan];
         result(nil);
     } else if ([call.method isEqualToString:@"stopScan"]) {
@@ -342,17 +348,22 @@ static const NSTimeInterval kWriteSpacing = 0.15;
     }
 }
 
-/// Показываем только кольца Jstyle: устройство либо рекламирует сервис
-/// fff0, либо его имя похоже на кольцо — иначе в списке все BLE-устройства.
-- (BOOL)isRingDevice:(CBPeripheral *)peripheral
-   advertisementData:(NSDictionary<NSString *, id> *)advertisementData {
+/// Показываем устройства Jstyle (кольца и браслеты): либо рекламируется
+/// сервис fff0, либо имя похоже на носимое устройство — иначе в списке
+/// оказываются все BLE-устройства вокруг.
+- (BOOL)isWearableDevice:(CBPeripheral *)peripheral
+       advertisementData:(NSDictionary<NSString *, id> *)advertisementData {
     NSArray *services = advertisementData[CBAdvertisementDataServiceUUIDsKey];
     for (CBUUID *uuid in services) {
         if ([uuid isEqual:[CBUUID UUIDWithString:kService]]) return YES;
     }
-    NSString *name = [(peripheral.name ?: @"") lowercaseString];
-    return [name containsString:@"ring"] || [name hasPrefix:@"jc"] ||
-           [name hasPrefix:@"j-style"] || [name hasPrefix:@"jstyle"];
+    NSString *advName = advertisementData[CBAdvertisementDataLocalNameKey];
+    NSString *name = [(peripheral.name ?: advName ?: @"") lowercaseString];
+    for (NSString *marker in @[@"ring", @"jc", @"jstyle", @"j-style", @"x3",
+                               @"2301", @"band", @"bracelet", @"smart"]) {
+        if ([name containsString:marker]) return YES;
+    }
+    return NO;
 }
 
 - (void)centralManager:(CBCentralManager *)central
@@ -360,7 +371,8 @@ static const NSTimeInterval kWriteSpacing = 0.15;
      advertisementData:(NSDictionary<NSString *, id> *)advertisementData
                   RSSI:(NSNumber *)RSSI {
     if (peripheral.name.length == 0) return;
-    if (![self isRingDevice:peripheral advertisementData:advertisementData]) return;
+    if (!self.showAllDevices &&
+        ![self isWearableDevice:peripheral advertisementData:advertisementData]) return;
     self.found[peripheral.identifier.UUIDString] = peripheral;
     NSMutableArray *devices = [NSMutableArray array];
     for (CBPeripheral *p in self.found.allValues) {

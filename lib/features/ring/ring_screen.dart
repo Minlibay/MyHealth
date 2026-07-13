@@ -12,6 +12,19 @@ import '../../data/ring/ring_providers.dart';
 import '../../data/ring/ring_service.dart';
 import '../../data/ring/ring_sync.dart';
 
+/// Показывать при поиске все BLE-устройства, а не только похожие на
+/// кольцо/браслет (на случай нестандартного имени устройства).
+class ShowAllDevicesController extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool value) => state = value;
+}
+
+final showAllDevicesProvider =
+    NotifierProvider<ShowAllDevicesController, bool>(
+        ShowAllDevicesController.new);
+
 class RingScreen extends ConsumerWidget {
   const RingScreen({super.key});
 
@@ -38,7 +51,7 @@ class RingScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _scan(RingService service) async {
+  Future<void> _scan(RingService service, {required bool showAll}) async {
     // BLE-разрешения различаются по платформам; на вебе пропускаем.
     if (!kIsWeb) {
       if (defaultTargetPlatform == TargetPlatform.android) {
@@ -51,22 +64,36 @@ class RingScreen extends ConsumerWidget {
         await Permission.bluetooth.request();
       }
     }
-    await service.startScan();
+    await service.startScan(showAll: showAll);
   }
 
   List<Widget> _scanBody(BuildContext context, WidgetRef ref, service,
       RingConnState conn) {
     final scan = ref.watch(ringScanProvider).value ?? const [];
+    final showAll = ref.watch(showAllDevicesProvider);
     return [
       FilledButton.icon(
-        onPressed:
-            conn == RingConnState.scanning ? null : () => _scan(service),
+        onPressed: conn == RingConnState.scanning
+            ? null
+            : () => _scan(service, showAll: showAll),
         icon: const Icon(Icons.bluetooth_searching),
         label: Text(conn == RingConnState.scanning
             ? 'Поиск…'
             : 'Искать устройства'),
       ),
-      const SizedBox(height: 16),
+      SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        title: const Text('Показать все устройства'),
+        subtitle: const Text(
+            'Если кольцо или браслет не находится — у него может быть '
+            'нестандартное имя.'),
+        value: showAll,
+        onChanged: (v) {
+          ref.read(showAllDevicesProvider.notifier).set(v);
+          if (conn != RingConnState.scanning) _scan(service, showAll: v);
+        },
+      ),
+      const SizedBox(height: 8),
       if (scan.isEmpty)
         Padding(
           padding: const EdgeInsets.all(24),
