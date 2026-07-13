@@ -210,6 +210,12 @@ class _Header extends ConsumerWidget {
           ),
           IconButton.filledTonal(
             iconSize: 22,
+            onPressed: () => context.push('/compare'),
+            icon: const Icon(Icons.ssid_chart_rounded),
+          ),
+          const SizedBox(width: 6),
+          IconButton.filledTonal(
+            iconSize: 22,
             onPressed: () => showManualEntrySheet(context),
             icon: const Icon(Icons.add_rounded),
           ),

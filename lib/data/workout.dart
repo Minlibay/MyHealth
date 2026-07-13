@@ -9,6 +9,10 @@ class Workout {
     this.energyKcal,
     this.distanceMeters,
     this.source,
+    this.avgHr,
+    this.maxHr,
+    this.zonesMinutes,
+    this.trimp,
   });
 
   /// Сырое имя типа активности (enum пакета health / бэкенда), напр. "RUNNING".
@@ -24,6 +28,16 @@ class Workout {
   final double? distanceMeters;
 
   final MetricSource? source;
+
+  /// Аналитика с сервера (по пульсу за окно тренировки), если рассчитана.
+  final double? avgHr;
+  final double? maxHr;
+
+  /// Минуты в зонах пульса Z1..Z5.
+  final List<double>? zonesMinutes;
+
+  /// Нагрузка по Эдвардсу: Σ минут в зоне × номер зоны.
+  final double? trimp;
 
   Duration get duration => end.difference(start);
 

@@ -69,6 +69,7 @@ class FakeHealthService implements HealthRepository {
     final hrv = 35 + _rnd.nextInt(40);
     final fat = 18 + _rnd.nextInt(80) / 10;
     final heightCm = 176.0;
+    final dietary = 1400 + _rnd.nextInt(900);
 
     return {
       HealthMetric.steps:
@@ -104,6 +105,8 @@ class FakeHealthService implements HealthRepository {
           fat, const Duration(days: 2)),
       HealthMetric.height: r(HealthMetric.height, heightCm.toStringAsFixed(0),
           heightCm, const Duration(days: 30)),
+      HealthMetric.dietaryEnergy: r(HealthMetric.dietaryEnergy, '$dietary',
+          dietary.toDouble(), const Duration(hours: 3)),
     };
   }
 
@@ -128,6 +131,7 @@ class FakeHealthService implements HealthRepository {
       HealthMetric.hrv => (55.0, 25.0),
       HealthMetric.bodyFat => (21.0, 3.0),
       HealthMetric.height => (176.0, 0.0),
+      HealthMetric.dietaryEnergy => (1900.0, 700.0),
     };
 
     final now = DateTime.now();

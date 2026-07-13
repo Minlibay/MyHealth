@@ -85,7 +85,12 @@ enum HealthMetric {
       title: 'Рост',
       icon: Icons.height_rounded,
       unit: 'см',
-      color: Color(0xFF64748B));
+      color: Color(0xFF64748B)),
+  dietaryEnergy(
+      title: 'Питание',
+      icon: Icons.restaurant_rounded,
+      unit: 'ккал',
+      color: Color(0xFF84CC16));
 
   const HealthMetric({
     required this.title,

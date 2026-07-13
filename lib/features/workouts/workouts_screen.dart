@@ -90,35 +90,56 @@ class _WorkoutTile extends StatelessWidget {
     ];
 
     return Card(
-      child: ListTile(
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
+      child: Column(
+        children: [
+          ListTile(
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(_iconFor(w.activityType),
+                  color: theme.colorScheme.primary, size: 24),
+            ),
+            title: Text(w.title),
+            subtitle: Text(
+              [
+                DateFormat('d MMM, HH:mm', 'ru').format(w.start),
+                if (w.avgHr != null) 'пульс ${w.avgHr!.round()} ср.',
+                if (w.trimp != null) 'TRIMP ${w.trimp!.round()}',
+                if (w.source != null) w.source!.label,
+              ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Text(
+              parts.join('\n'),
+              textAlign: TextAlign.end,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
           ),
-          child: Icon(_iconFor(w.activityType),
-              color: theme.colorScheme.primary, size: 24),
-        ),
-        title: Text(w.title),
-        subtitle: Text(
-          [
-            DateFormat('d MMM, HH:mm', 'ru').format(w.start),
-            if (w.source != null) w.source!.label,
-          ].join(' · '),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Text(
-          parts.join('\n'),
-          textAlign: TextAlign.end,
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-        ),
+          if (w.zonesMinutes != null &&
+              w.zonesMinutes!.any((z) => z > 0)) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: _ZonesBar(zones: w.zonesMinutes!),
+            ),
+          ],
+        ],
       ),
     );
   }
+
+  static const _zoneColors = [
+    Color(0xFF60A5FA), // Z1 — разминка
+    Color(0xFF34D399), // Z2 — жиросжигание
+    Color(0xFFFBBF24), // Z3 — аэробная
+    Color(0xFFFB923C), // Z4 — анаэробная
+    Color(0xFFF87171), // Z5 — максимум
+  ];
 
   IconData _iconFor(String type) {
     final t = type.toUpperCase();
@@ -152,5 +173,50 @@ class _WorkoutTile extends StatelessWidget {
       return Icons.sports_mma_rounded;
     }
     return Icons.fitness_center_rounded;
+  }
+}
+
+/// Полоса зон пульса: ширина сегмента пропорциональна минутам в зоне.
+class _ZonesBar extends StatelessWidget {
+  const _ZonesBar({required this.zones});
+
+  final List<double> zones;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = zones.fold(0.0, (a, b) => a + b);
+    if (total <= 0) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: SizedBox(
+            height: 8,
+            child: Row(
+              children: [
+                for (var i = 0; i < zones.length && i < 5; i++)
+                  if (zones[i] > 0)
+                    Expanded(
+                      flex: (zones[i] / total * 1000).round().clamp(1, 100000),
+                      child: Container(color: _WorkoutTile._zoneColors[i]),
+                    ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          [
+            for (var i = 0; i < zones.length && i < 5; i++)
+              if (zones[i] >= 1) 'Z${i + 1} ${zones[i].round()}м',
+          ].join(' · '),
+          style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 11, color: theme.colorScheme.outline),
+        ),
+      ],
+    );
   }
 }
