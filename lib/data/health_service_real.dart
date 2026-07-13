@@ -52,6 +52,11 @@ final Map<HealthMetric, List<HealthDataType>> _typeMap = {
       : [HealthDataType.HEART_RATE_VARIABILITY_RMSSD],
   HealthMetric.bodyFat: [HealthDataType.BODY_FAT_PERCENTAGE],
   HealthMetric.height: [HealthDataType.HEIGHT],
+  // iOS отдаёт калории напрямую, Android — внутри композитной записи
+  // NUTRITION (см. _rawNum).
+  HealthMetric.dietaryEnergy: Platform.isIOS
+      ? [HealthDataType.DIETARY_ENERGY_CONSUMED]
+      : [HealthDataType.NUTRITION],
 };
 
 /// Накопительные показатели: осмыслена суточная сумма, а не последняя запись.
@@ -60,6 +65,7 @@ const Set<HealthMetric> _dailySumMetrics = {
   HealthMetric.activeEnergy,
   HealthMetric.distance,
   HealthMetric.water,
+  HealthMetric.dietaryEnergy,
 };
 
 /// Приведение сырого значения к единицам приложения:
@@ -387,6 +393,8 @@ class RealHealthService implements HealthRepository {
   double _rawNum(HealthDataPoint p) {
     final value = p.value;
     if (value is NumericHealthValue) return value.numericValue.toDouble();
+    // Android: приём пищи — композитная запись, калории внутри.
+    if (value is NutritionHealthValue) return value.calories ?? 0;
     return 0;
   }
 }

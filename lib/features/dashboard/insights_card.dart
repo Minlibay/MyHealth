@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/insights.dart';
 import '../../providers.dart';
@@ -24,14 +25,25 @@ class InsightsCard extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Card(
-        child: Padding(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          // Полный разбор (8 скоров с факторами) — на экране инсайтов.
+          onTap: () => context.push('/insights'),
+          child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Сегодня',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Row(
+                children: [
+                  Text('Сегодня',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant)),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 20, color: theme.colorScheme.outline),
+                ],
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -45,6 +57,7 @@ class InsightsCard extends ConsumerWidget {
                 _AnomalyRow(anomaly: a),
               ],
             ],
+          ),
           ),
         ),
       ),

@@ -7,8 +7,10 @@ import 'core/theme.dart';
 import 'data/auth/auth_controller.dart';
 import 'data/ring/ring_connection.dart';
 import 'data/ring/ring_sync.dart';
+import 'notifications/notifications.dart';
 import 'providers.dart';
 import 'router.dart';
+import 'widget/widget_bridge.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +41,22 @@ class MyHealthApp extends ConsumerWidget {
     // Контроллер живёт с запуска: ловит подключение кольца и сразу
     // включает автозамеры + выкачивает накопленную историю.
     ref.watch(ringSyncProvider);
+    // Уведомления об отклонениях от личной нормы (раз в сутки на аномалию)
+    // и обновление домашнего виджета со скорами.
+    ref.listen(insightsProvider, (_, next) {
+      final data = next.value;
+      if (data == null) return;
+      updateHomeWidget(
+        health: data.healthScore,
+        sleep: data.sleepScore,
+        recovery: data.readinessScore,
+      );
+      if (data.anomalies.isEmpty) return;
+      notifyAnomalies([
+        for (final a in data.anomalies)
+          (key: a.metric.name, message: a.message),
+      ]);
+    });
 
     return MaterialApp.router(
       title: 'MyHealth',

@@ -13,6 +13,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Требуется flutter_local_notifications (java.time на старых Android).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -47,4 +49,5 @@ flutter {
 dependencies {
     // Нативный BLE-SDK кольца JCRing X3 (Jstyle), вложен как модуль.
     implementation(project(":blesdk_x3"))
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

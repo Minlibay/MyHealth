@@ -59,6 +59,12 @@ class WorkoutsApi {
               energyKcal: (raw['energyKcal'] as num?)?.toDouble(),
               distanceMeters: (raw['distanceMeters'] as num?)?.toDouble(),
               source: MetricSource.fromApi(raw['source'] as String?),
+              avgHr: (raw['avgHr'] as num?)?.toDouble(),
+              maxHr: (raw['maxHr'] as num?)?.toDouble(),
+              zonesMinutes: (raw['zonesMinutes'] as List?)
+                  ?.map((z) => (z as num).toDouble())
+                  .toList(),
+              trimp: (raw['trimp'] as num?)?.toDouble(),
             ),
         ];
       }

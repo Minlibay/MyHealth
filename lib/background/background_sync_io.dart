@@ -11,6 +11,7 @@ import '../data/api/workouts_api.dart';
 import '../data/auth/auth_session.dart';
 import '../data/health_repository_factory.dart';
 import '../data/sync_settings.dart' show syncHealthStoreKey;
+import '../notifications/notifications_io.dart';
 
 const _syncTask = 'com.myhealth.bgSync';
 
@@ -53,6 +54,22 @@ void callbackDispatcher() {
       try {
         final workouts = await device.fetchWorkouts(days: 7);
         await WorkoutsApi(client).uploadWorkouts(workouts);
+      } catch (_) {}
+
+      // После выгрузки проверяем аномалии и показываем уведомления —
+      // так «пульс выше вашей нормы» приходит, даже когда приложение закрыто.
+      try {
+        final res = await client.dio.get('/api/insights');
+        if (res.statusCode == 200 && res.data is Map) {
+          final anomalies = ((res.data as Map)['anomalies'] as List? ?? []);
+          await notifyAnomalies([
+            for (final a in anomalies)
+              (
+                key: (a as Map)['metric'].toString(),
+                message: a['message'] as String,
+              ),
+          ]);
+        }
       } catch (_) {}
       return true;
     } catch (_) {

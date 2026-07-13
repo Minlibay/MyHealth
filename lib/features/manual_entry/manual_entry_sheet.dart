@@ -15,6 +15,7 @@ const _manualMetrics = [
   HealthMetric.bloodGlucose,
   HealthMetric.bodyTemperature,
   HealthMetric.water,
+  HealthMetric.dietaryEnergy,
   HealthMetric.height,
 ];
 
