@@ -236,10 +236,26 @@ class _HistorySyncButton extends StatelessWidget {
     final sync = ref.watch(ringSyncProvider);
     final syncing = sync.phase == RingSyncPhase.syncing;
 
+    // Разбивка по типам — видно, какие данные кольцо реально отдало.
+    const kindLabels = {
+      'activity': 'активность',
+      'sleep': 'сон',
+      'dynamicHr': 'пульс',
+      'staticHr': 'пульс разовый',
+      'hrv': 'HRV',
+      'spo2': 'SpO₂',
+      'temperature': 'темп.',
+      'sleepTemperature': 'темп. сна',
+    };
+    final counts = sync.history?.rawCounts;
+    final breakdown = counts == null || counts.isEmpty
+        ? ''
+        : '\n${kindLabels.entries.map((e) => '${e.value} ${counts[e.key] ?? 0}').join(' · ')}';
+
     final subtitle = switch (sync.phase) {
       RingSyncPhase.syncing => 'Выкачиваем историю с кольца…',
       RingSyncPhase.done =>
-        'Записей: ${sync.records} · ${DateFormat.Hm().format(sync.at!)}',
+        'Записей: ${sync.records} · ${DateFormat.Hm().format(sync.at!)}$breakdown',
       RingSyncPhase.error => 'Ошибка: ${sync.message}',
       RingSyncPhase.idle => null,
     };

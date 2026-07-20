@@ -14,6 +14,9 @@ class RingHistory {
   final Map<HealthMetric, List<MetricSample>> samples;
   final List<SleepSessionModel> sleepSessions;
 
+  /// Сырые счётчики записей по типам истории (диагностика синхронизации).
+  final Map<String, int> rawCounts = {};
+
   bool get isEmpty =>
       sleepSessions.isEmpty && samples.values.every((l) => l.isEmpty);
 
@@ -42,7 +45,19 @@ class RingHistoryBuilder {
     return _history;
   }
 
+  /// Кандидаты ключей температуры: Android/iOS SDK используют разные имена.
+  static const _tempKeys = [
+    'temperature',
+    'Temperature',
+    'temp',
+    'TempData',
+    'axillaryTemperature',
+    'Final_temperature_value',
+  ];
+
   void addRecords(String kind, List<Map<String, String?>> records) {
+    _history.rawCounts.update(kind, (v) => v + records.length,
+        ifAbsent: () => records.length);
     for (final r in records) {
       switch (kind) {
         case 'activity':
@@ -57,8 +72,10 @@ class RingHistoryBuilder {
           _addSample(r, HealthMetric.hrv, ['hrv', 'HRV']);
         case 'spo2':
           _addSample(r, HealthMetric.bloodOxygen, ['Blood_oxygen', 'spo2', 'Sp02']);
-        case 'temperature':
-          _addSample(r, HealthMetric.bodyTemperature, ['temperature']);
+        case 'temperature' || 'sleepTemperature':
+          // Кожная температура: отбрасываем нули и мусор вне 30–43 °C.
+          _addSample(r, HealthMetric.bodyTemperature, _tempKeys,
+              min: 30, max: 43);
       }
     }
   }
@@ -85,10 +102,12 @@ class RingHistoryBuilder {
       _history.samples.putIfAbsent(metric, () => []).add(sample);
 
   void _addSample(
-      Map<String, String?> r, HealthMetric metric, List<String> keys) {
+      Map<String, String?> r, HealthMetric metric, List<String> keys,
+      {double min = 0, double? max}) {
     final time = _date(r);
     final value = _num(r, keys);
-    if (time == null || value == null || value <= 0) return;
+    if (time == null || value == null || value <= min) return;
+    if (max != null && value > max) return;
     _add(metric,
         MetricSample(time: time, value: value, source: source));
   }

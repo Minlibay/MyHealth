@@ -39,7 +39,8 @@ class MetricChart extends StatelessWidget {
     var minY = values.reduce((a, b) => a < b ? a : b);
     var maxY = values.reduce((a, b) => a > b ? a : b);
     final pad = (maxY - minY) * 0.15 + 1;
-    minY -= pad;
+    // Не уводим ось ниже нуля: у показателей не бывает отрицательных значений.
+    minY = (minY - pad).clamp(0, double.infinity).toDouble();
     maxY += pad;
 
     return LineChart(

@@ -64,6 +64,10 @@ class RingBleManager(private val context: Context) : EventChannel.StreamHandler 
         HistoryKind("hrv", "42") { m -> BleSDK.GetHRVDataWithMode(m, "") },
         HistoryKind("spo2", "68") { m -> BleSDK.Oxygen_data(m, "") },
         HistoryKind("temperature", "59") { m -> BleSDK.GetTemperature_historyData(m, "") },
+        // Кольцо меряет температуру в основном ночью — забираем и её.
+        HistoryKind("sleepTemperature", "122") { m ->
+            BleSDK.GetSleepTemperatureDataWithMode(m, "")
+        },
     )
 
     private val main = Handler(Looper.getMainLooper())
