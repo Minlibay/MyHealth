@@ -14,9 +14,12 @@ static const NSTimeInterval kHistoryStepTimeout = 15.0;
 static const NSTimeInterval kWriteSpacing = 0.15;
 
 /// Один тип истории: имя для Flutter + dataType SDK + генератор команды.
+/// altDataType — запасной тип ответа (некоторые прошивки отвечают
+/// соседним типом, например температура как AxillaryTemperature).
 @interface RingHistoryKind : NSObject
 @property(nonatomic, copy) NSString *name;
 @property(nonatomic, assign) NSInteger dataType;
+@property(nonatomic, assign) NSInteger altDataType;
 @property(nonatomic, copy) NSMutableData *(^command)(int mode);
 @end
 
@@ -27,8 +30,13 @@ static const NSTimeInterval kWriteSpacing = 0.15;
     RingHistoryKind *k = [RingHistoryKind new];
     k.name = name;
     k.dataType = dataType;
+    k.altDataType = -1;
     k.command = command;
     return k;
+}
+
+- (BOOL)matches:(NSInteger)dataType {
+    return dataType == self.dataType || dataType == self.altDataType;
 }
 @end
 
@@ -256,8 +264,13 @@ static const NSTimeInterval kWriteSpacing = 0.15;
                       command:^(int m) { return [sdk GetHRVDataWithMode:m withStartDate:nil]; }],
         [RingHistoryKind name:@"spo2" dataType:AutomaticSpo2Data_X3
                       command:^(int m) { return [sdk GetAutomaticSpo2DataWithMode:m withStartDate:nil]; }],
-        [RingHistoryKind name:@"temperature" dataType:TemperatureData_X3
-                      command:^(int m) { return [sdk GetTemperatureDataWithMode:m withStartDate:nil]; }],
+        ({
+            RingHistoryKind *temp =
+                [RingHistoryKind name:@"temperature" dataType:TemperatureData_X3
+                              command:^(int m) { return [sdk GetTemperatureDataWithMode:m withStartDate:nil]; }];
+            temp.altDataType = AxillaryTemperatureData_X3;
+            temp;
+        }),
     ];
 }
 
@@ -432,7 +445,7 @@ didUpdateValueForCharacteristic:(CBCharacteristic *)characteristic error:(NSErro
 
     // История: диспетчеризация по dataType текущего шага.
     RingHistoryKind *kind = self.currentKind;
-    if (kind && parsed.dataType == kind.dataType) {
+    if (kind && [kind matches:parsed.dataType]) {
         NSArray *records = [self recordsFromDicData:d];
         if (records.count > 0) {
             [self emit:@{@"type": @"history", @"kind": kind.name, @"records": records}];

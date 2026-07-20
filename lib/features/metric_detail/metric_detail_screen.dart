@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:intl/intl.dart';
+
 import '../../core/health_metric.dart';
 import '../../core/health_status.dart';
+import '../../core/metric_format.dart';
 import '../../data/metric_reading.dart';
 import '../../data/metric_sample.dart';
 import '../../data/ring/ring_capture.dart';
@@ -104,12 +107,95 @@ class _MetricDetailScreenState extends ConsumerState<MetricDetailScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          if (series.value != null && series.value!.isNotEmpty)
+          if (series.value != null && series.value!.isNotEmpty) ...[
             _StatsRow(metric: metric, samples: series.value!)
                 .animate()
                 .fadeIn(duration: 300.ms),
+            const SizedBox(height: 20),
+            _ValuesList(metric: metric, samples: series.value!),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Список последних значений: каждое — со временем и источником
+/// (кольцо, Apple Health, часы и т.д.), т.к. в серии источники смешаны.
+class _ValuesList extends StatefulWidget {
+  const _ValuesList({required this.metric, required this.samples});
+
+  final HealthMetric metric;
+  final List<MetricSample> samples;
+
+  @override
+  State<_ValuesList> createState() => _ValuesListState();
+}
+
+class _ValuesListState extends State<_ValuesList> {
+  static const _pageSize = 20;
+  int _shown = _pageSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Новые сверху.
+    final sorted = [...widget.samples]
+      ..sort((a, b) => b.time.compareTo(a.time));
+    final visible = sorted.take(_shown).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Значения',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 8),
+        Card(
+          child: Column(
+            children: [
+              for (final (i, s) in visible.indexed) ...[
+                if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  dense: true,
+                  title: Text(
+                    '${formatMetricDisplay(widget.metric, s.value, s.secondary)}'
+                    ' ${widget.metric.unit}',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  subtitle: Text(
+                      DateFormat('d MMM, HH:mm', 'ru').format(s.time)),
+                  trailing: s.source == null
+                      ? null
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            s.source!.label,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: 11,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                ),
+              ],
+              if (sorted.length > _shown)
+                TextButton(
+                  onPressed: () =>
+                      setState(() => _shown += _ValuesListState._pageSize),
+                  child: Text(
+                      'Показать ещё (${sorted.length - _shown} записей)'),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -81,5 +81,23 @@ void main() {
 
       expect(h.samples[HealthMetric.bodyTemperature], hasLength(1));
     });
+
+    test('температура: альтернативные ключи, ночная история и фильтр диапазона',
+        () {
+      final b = RingHistoryBuilder();
+      b.addRecords('temperature', [
+        {'date': '2026-07-10 04:00:00', 'TempData': '36.5'},
+        {'date': '2026-07-10 05:00:00', 'temperature': '0'}, // мусор
+        {'date': '2026-07-10 06:00:00', 'axillaryTemperature': '98.6'}, // не °C
+      ]);
+      b.addRecords('sleepTemperature', [
+        {'date': '2026-07-10 03:00:00', 'temperature': '36.2'},
+      ]);
+      final h = b.build();
+
+      expect(h.samples[HealthMetric.bodyTemperature], hasLength(2));
+      expect(h.rawCounts['temperature'], 3);
+      expect(h.rawCounts['sleepTemperature'], 1);
+    });
   });
 }
