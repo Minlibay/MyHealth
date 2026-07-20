@@ -8,6 +8,7 @@ import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/metric_detail/metric_detail_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/profile/profile_screen.dart';
 import 'features/compare/compare_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/ring/ring_screen.dart';
@@ -52,6 +53,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/workouts', builder: (_, _) => const WorkoutsScreen()),
       GoRoute(path: '/insights', builder: (_, _) => const InsightsScreen()),
       GoRoute(path: '/compare', builder: (_, _) => const CompareScreen()),
+      GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
       GoRoute(
         path: '/metric/:name',
         builder: (_, state) {

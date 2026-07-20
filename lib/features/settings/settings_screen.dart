@@ -72,6 +72,19 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
+          _SectionTitle('Профиль'),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.person_outline_rounded,
+                  color: theme.colorScheme.primary),
+              title: const Text('Пол, возраст, рост, вес и цели'),
+              subtitle: const Text(
+                  'Зоны пульса, калории кольца и персональные цели.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/profile'),
+            ),
+          ),
+          const SizedBox(height: 24),
           _SectionTitle('Устройства'),
           Card(
             child: ListTile(
