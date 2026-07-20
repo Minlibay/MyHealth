@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:intl/intl.dart';
 
@@ -9,6 +10,7 @@ import '../../core/health_status.dart';
 import '../../core/metric_format.dart';
 import '../../data/metric_reading.dart';
 import '../../data/metric_sample.dart';
+import '../../data/profile_controller.dart';
 import '../../data/ring/ring_capture.dart';
 import '../../features/dashboard/status_pill.dart';
 import '../../providers.dart';
@@ -78,6 +80,20 @@ class _MetricDetailScreenState extends ConsumerState<MetricDetailScreen> {
           if (metric == HealthMetric.sleep) ...[
             const SizedBox(height: 14),
             const HypnogramCard(),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => context.push('/sleep-history'),
+                icon: const Icon(Icons.calendar_view_week_rounded, size: 18),
+                label: const Text('Все ночи'),
+              ),
+            ),
+          ],
+          // ИМТ — на детальном экране веса (рост из профиля).
+          if (metric == HealthMetric.weight) ...[
+            const SizedBox(height: 14),
+            _BmiCard(samples: series.value),
           ],
           const SizedBox(height: 20),
           Center(
@@ -115,6 +131,49 @@ class _MetricDetailScreenState extends ConsumerState<MetricDetailScreen> {
             _ValuesList(metric: metric, samples: series.value!),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// ИМТ из последнего веса и роста в профиле.
+class _BmiCard extends ConsumerWidget {
+  const _BmiCard({required this.samples});
+
+  final List<MetricSample>? samples;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final height = ref.watch(profileControllerProvider).value?.heightCm;
+    final weight =
+        (samples != null && samples!.isNotEmpty) ? samples!.last.value : null;
+    if (height == null || height <= 0 || weight == null) {
+      return Card(
+        child: ListTile(
+          leading: Icon(Icons.monitor_weight_outlined,
+              color: theme.colorScheme.outline),
+          title: const Text('ИМТ'),
+          subtitle: const Text('Укажите рост в профиле, чтобы считать ИМТ.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/profile'),
+        ),
+      );
+    }
+
+    final bmi = weight / ((height / 100) * (height / 100));
+    final (label, color) = switch (bmi) {
+      < 18.5 => ('Дефицит массы', const Color(0xFF60A5FA)),
+      < 25 => ('Норма', const Color(0xFF22C55E)),
+      < 30 => ('Избыточная масса', const Color(0xFFEAB308)),
+      _ => ('Ожирение', Theme.of(context).colorScheme.error),
+    };
+
+    return Card(
+      child: ListTile(
+        leading: Icon(Icons.monitor_weight_outlined, color: color),
+        title: Text('ИМТ ${bmi.toStringAsFixed(1)}'),
+        subtitle: Text('$label · рост ${height.toStringAsFixed(0)} см'),
       ),
     );
   }

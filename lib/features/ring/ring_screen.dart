@@ -246,11 +246,21 @@ class _HistorySyncButton extends StatelessWidget {
       'spo2': 'SpO₂',
       'temperature': 'темп.',
       'sleepTemperature': 'темп. сна',
+      'osa': 'апноэ',
     };
     final counts = sync.history?.rawCounts;
-    final breakdown = counts == null || counts.isEmpty
+    var breakdown = counts == null || counts.isEmpty
         ? ''
         : '\n${kindLabels.entries.map((e) => '${e.value} ${counts[e.key] ?? 0}').join(' · ')}';
+    final osa = sync.history?.osaRisks;
+    if (osa != null && osa.isNotEmpty) {
+      final label = switch (osa.first.risk) {
+        0 || 1 => 'низкий риск',
+        2 => 'умеренный риск',
+        _ => 'высокий риск — обсудите с врачом',
+      };
+      breakdown += '\nАпноэ за ночь: $label';
+    }
 
     final subtitle = switch (sync.phase) {
       RingSyncPhase.syncing => 'Выкачиваем историю с кольца…',

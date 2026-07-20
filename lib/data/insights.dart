@@ -102,6 +102,87 @@ class TrainingLoad {
       };
 }
 
+/// Ночные показатели из последней сессии сна.
+class NightVitals {
+  const NightVitals({
+    this.restingHr,
+    this.restingHrBaseline,
+    this.spo2Min,
+    this.spo2Dips,
+    this.sleepRegularityMinutes,
+  });
+
+  /// Пульс покоя за ночь (5-й перцентиль пульса во сне).
+  final double? restingHr;
+
+  /// Ваша норма ночного пульса покоя за 30 дней.
+  final double? restingHrBaseline;
+
+  final double? spo2Min;
+  final int? spo2Dips;
+
+  /// Разброс времени отбоя за 14 дней, минуты (σ).
+  final double? sleepRegularityMinutes;
+
+  bool get isEmpty =>
+      restingHr == null && spo2Min == null && sleepRegularityMinutes == null;
+
+  factory NightVitals.fromJson(Map<String, dynamic> json) => NightVitals(
+        restingHr: (json['restingHr'] as num?)?.toDouble(),
+        restingHrBaseline: (json['restingHrBaseline'] as num?)?.toDouble(),
+        spo2Min: (json['spo2Min'] as num?)?.toDouble(),
+        spo2Dips: (json['spo2Dips'] as num?)?.toInt(),
+        sleepRegularityMinutes:
+            (json['sleepRegularityMinutes'] as num?)?.toDouble(),
+      );
+}
+
+/// Точка почасового стресс-таймлайна.
+class StressPoint {
+  const StressPoint({required this.at, required this.value});
+  final DateTime at;
+  final int value;
+}
+
+/// Недельный отчёт: эта неделя против прошлой.
+class WeeklyReport {
+  const WeeklyReport({
+    required this.trends,
+    required this.workoutsThisWeek,
+    required this.workoutsLastWeek,
+    required this.trimpThisWeek,
+    required this.trimpLastWeek,
+  });
+
+  final List<Trend> trends;
+  final int workoutsThisWeek;
+  final int workoutsLastWeek;
+  final double trimpThisWeek;
+  final double trimpLastWeek;
+
+  factory WeeklyReport.fromJson(Map<String, dynamic> json) {
+    HealthMetric? metric(Object? raw) =>
+        raw is String ? MetricsApi.metricFromBackend(raw) : null;
+    return WeeklyReport(
+      trends: [
+        for (final raw in (json['trends'] as List? ?? []))
+          if (metric((raw as Map)['metric']) != null)
+            Trend(
+              metric: metric(raw['metric'])!,
+              thisWeekAvg: (raw['thisWeekAvg'] as num).toDouble(),
+              lastWeekAvg: (raw['lastWeekAvg'] as num).toDouble(),
+              changePct: (raw['changePct'] as num).toDouble(),
+              direction: raw['direction'] as String,
+            ),
+      ],
+      workoutsThisWeek: (json['workoutsThisWeek'] as num?)?.toInt() ?? 0,
+      workoutsLastWeek: (json['workoutsLastWeek'] as num?)?.toInt() ?? 0,
+      trimpThisWeek: (json['trimpThisWeek'] as num?)?.toDouble() ?? 0,
+      trimpLastWeek: (json['trimpLastWeek'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
 /// Инсайты, рассчитанные бэкендом из истории пользователя.
 class Insights {
   const Insights({
@@ -110,6 +191,9 @@ class Insights {
     this.readinessScore,
     this.scores = const [],
     this.trainingLoad,
+    this.night,
+    this.vo2Max,
+    this.stressTimeline = const [],
     this.baselines = const [],
     this.trends = const [],
     this.anomalies = const [],
@@ -122,6 +206,11 @@ class Insights {
   /// Все скоры (recovery, sleep, strain, stress, ...) с факторами.
   final List<Score> scores;
   final TrainingLoad? trainingLoad;
+  final NightVitals? night;
+
+  /// Оценка VO₂max по Уту—Соренсену (15.3 × HRmax / пульс покоя).
+  final double? vo2Max;
+  final List<StressPoint> stressTimeline;
   final List<Baseline> baselines;
   final List<Trend> trends;
   final List<Anomaly> anomalies;
@@ -166,6 +255,17 @@ class Insights {
               ratio: (loadRaw['ratio'] as num?)?.toDouble(),
               status: loadRaw['status'] as String,
             ),
+      night: json['night'] is Map
+          ? NightVitals.fromJson(Map<String, dynamic>.from(json['night'] as Map))
+          : null,
+      vo2Max: (json['vo2Max'] as num?)?.toDouble(),
+      stressTimeline: [
+        for (final raw in (json['stressTimeline'] as List? ?? []))
+          StressPoint(
+            at: DateTime.parse((raw as Map)['at'] as String).toLocal(),
+            value: (raw['value'] as num).toInt(),
+          ),
+      ],
       baselines: [
         for (final raw in (json['baselines'] as List? ?? []))
           if (metric((raw as Map)['metric']) != null)
