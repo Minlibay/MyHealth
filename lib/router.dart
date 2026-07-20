@@ -9,6 +9,8 @@ import 'features/dashboard/dashboard_screen.dart';
 import 'features/metric_detail/metric_detail_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'features/sleep_history/sleep_history_screen.dart';
+import 'features/weekly/weekly_report_screen.dart';
 import 'features/compare/compare_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/ring/ring_screen.dart';
@@ -54,6 +56,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/insights', builder: (_, _) => const InsightsScreen()),
       GoRoute(path: '/compare', builder: (_, _) => const CompareScreen()),
       GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+      GoRoute(
+          path: '/sleep-history',
+          builder: (_, _) => const SleepHistoryScreen()),
+      GoRoute(path: '/weekly', builder: (_, _) => const WeeklyReportScreen()),
       GoRoute(
         path: '/metric/:name',
         builder: (_, state) {

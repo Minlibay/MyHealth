@@ -12,6 +12,7 @@ import '../../data/ring/ring_models.dart';
 import '../../data/ring/ring_providers.dart';
 import '../../providers.dart';
 import '../manual_entry/manual_entry_sheet.dart';
+import '../tags/tag_sheet.dart';
 import 'insights_card.dart';
 import 'metric_card.dart';
 
@@ -210,6 +211,12 @@ class _Header extends ConsumerWidget {
           ),
           IconButton.filledTonal(
             iconSize: 22,
+            onPressed: () => showTagSheet(context),
+            icon: const Icon(Icons.sell_outlined),
+          ),
+          const SizedBox(width: 6),
+          IconButton.filledTonal(
+            iconSize: 22,
             onPressed: () => context.push('/compare'),
             icon: const Icon(Icons.ssid_chart_rounded),
           ),
@@ -231,7 +238,7 @@ class _Header extends ConsumerWidget {
   }
 }
 
-/// Тайл «Тренировки»: количество за неделю и переход к списку.
+/// Тайлы «Тренировки» и «Итоги недели».
 class _WorkoutsTile extends ConsumerWidget {
   const _WorkoutsTile();
 
@@ -239,29 +246,52 @@ class _WorkoutsTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final count = ref.watch(workoutsProvider(7)).value?.length;
+    final cloudMode = ref.watch(cloudModeProvider);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: ListTile(
-          leading: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
+      child: Column(
+        children: [
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              leading: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.fitness_center_rounded,
+                    color: theme.colorScheme.primary, size: 22),
+              ),
+              title: const Text('Тренировки'),
+              subtitle: Text(count == null ? 'За неделю' : 'За неделю: $count'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/workouts'),
             ),
-            child: Icon(Icons.fitness_center_rounded,
-                color: theme.colorScheme.primary, size: 22),
           ),
-          title: const Text('Тренировки'),
-          subtitle: Text(count == null
-              ? 'За неделю'
-              : 'За неделю: $count'),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => context.push('/workouts'),
-        ),
+          if (cloudMode)
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: ListTile(
+                leading: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.tertiary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.calendar_month_rounded,
+                      color: theme.colorScheme.tertiary, size: 22),
+                ),
+                title: const Text('Итоги недели'),
+                subtitle: const Text('Сравнение с прошлой неделей'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.push('/weekly'),
+              ),
+            ),
+        ],
       ),
     );
   }

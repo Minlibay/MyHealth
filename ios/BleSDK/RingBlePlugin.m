@@ -233,6 +233,8 @@ static const NSTimeInterval kWriteSpacing = 0.15;
 
 /// Автозамеры: интервальный режим на весь день, все дни недели.
 - (void)enableAutoMonitoring:(int)intervalMinutes {
+    // Мониторинг апноэ сна (OSA) — кольцо оценивает риск за ночь.
+    [self enqueueWrite:[[BleSDK_X3 sharedManager] configureOSAFeatureWithMode:YES enable:YES]];
     MyWeeks_X3 all = { YES, YES, YES, YES, YES, YES, YES };
     for (int sensor = 1; sensor <= 4; sensor++) { // 1=HR, 2=SpO2, 3=temp, 4=HRV
         MyAutomaticMonitoring_X3 cfg;
@@ -271,6 +273,9 @@ static const NSTimeInterval kWriteSpacing = 0.15;
             temp.altDataType = AxillaryTemperatureData_X3;
             temp;
         }),
+        // Оценка риска апноэ (OSA), считается кольцом за ночь.
+        [RingHistoryKind name:@"osa" dataType:osaData_X3
+                      command:^(int m) { return [sdk GetOSADataWithMode:m withStartDate:nil]; }],
     ];
 }
 

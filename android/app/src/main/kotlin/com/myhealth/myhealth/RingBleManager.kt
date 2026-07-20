@@ -68,6 +68,8 @@ class RingBleManager(private val context: Context) : EventChannel.StreamHandler 
         HistoryKind("sleepTemperature", "122") { m ->
             BleSDK.GetSleepTemperatureDataWithMode(m, "")
         },
+        // Оценка риска апноэ (OSA), считается кольцом за ночь.
+        HistoryKind("osa", "139") { m -> BleSDK.OSA(m, "") },
     )
 
     private val main = Handler(Looper.getMainLooper())
@@ -210,6 +212,8 @@ class RingBleManager(private val context: Context) : EventChannel.StreamHandler 
      * все дни недели. Без этого истории не будет.
      */
     fun enableAutoMonitoring(intervalMinutes: Int) {
+        // Мониторинг апноэ сна (OSA) — кольцо оценивает риск за ночь.
+        enqueueWrite(BleSDK.SetOSA(true))
         for (mode in listOf(AutoMode.AutoHeartRate, AutoMode.AutoSpo2, AutoMode.AutoTemp, AutoMode.AutoHrv)) {
             val cfg = MyAutomaticHRMonitoring()
             cfg.open = 2 // 2 = интервальные замеры внутри окна

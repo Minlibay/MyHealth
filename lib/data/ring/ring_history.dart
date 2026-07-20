@@ -17,6 +17,9 @@ class RingHistory {
   /// Сырые счётчики записей по типам истории (диагностика синхронизации).
   final Map<String, int> rawCounts = {};
 
+  /// Оценки риска апноэ по ночам: 0/1 — низкий, 2 — умеренный, 3 — высокий.
+  final List<({DateTime time, int risk})> osaRisks = [];
+
   bool get isEmpty =>
       sleepSessions.isEmpty && samples.values.every((l) => l.isEmpty);
 
@@ -42,6 +45,7 @@ class RingHistoryBuilder {
       list.sort((a, b) => a.time.compareTo(b.time));
     }
     _history.sleepSessions.sort((a, b) => b.start.compareTo(a.start));
+    _history.osaRisks.sort((a, b) => b.time.compareTo(a.time));
     return _history;
   }
 
@@ -76,8 +80,18 @@ class RingHistoryBuilder {
           // Кожная температура: отбрасываем нули и мусор вне 30–43 °C.
           _addSample(r, HealthMetric.bodyTemperature, _tempKeys,
               min: 30, max: 43);
+        case 'osa':
+          _addOsa(r);
       }
     }
+  }
+
+  void _addOsa(Map<String, String?> r) {
+    final time = _date(r);
+    final risk = int.tryParse(r['osaRick'] ?? r['osaRisk'] ?? '');
+    // 16 — «нет результата» по документации SDK.
+    if (time == null || risk == null || risk > 3) return;
+    _history.osaRisks.add((time: time, risk: risk));
   }
 
   // --- Разбор полей ---

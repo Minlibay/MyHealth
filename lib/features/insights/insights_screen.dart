@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Baseline;
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../data/insights.dart';
 import '../../providers.dart';
@@ -51,6 +52,10 @@ class InsightsScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
               children: [
+                if (data.night != null && !data.night!.isEmpty)
+                  _NightCard(night: data.night!, vo2Max: data.vo2Max),
+                if (data.stressTimeline.length >= 3)
+                  _StressTimelineCard(points: data.stressTimeline),
                 for (final (i, s) in data.scores.indexed)
                   _ScoreCard(score: s)
                       .animate()
@@ -139,6 +144,164 @@ class _ScoreCard extends StatelessWidget {
               child: Text('Нет детализации'),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Ночные показатели: пульс покоя, SpO₂, регулярность + VO₂max.
+class _NightCard extends StatelessWidget {
+  const _NightCard({required this.night, this.vo2Max});
+
+  final NightVitals night;
+  final double? vo2Max;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget item(IconData icon, String label, String value, {String? hint}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: theme.textTheme.bodyMedium),
+                  if (hint != null)
+                    Text(hint,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.outline)),
+                ],
+              ),
+            ),
+            Text(value,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      );
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.nightlight_round,
+                  size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text('Ночь', style: theme.textTheme.titleSmall),
+            ]),
+            const SizedBox(height: 6),
+            if (night.restingHr != null)
+              item(
+                Icons.favorite_border_rounded,
+                'Пульс покоя за ночь',
+                '${night.restingHr!.round()} уд/мин',
+                hint: night.restingHrBaseline != null
+                    ? 'Ваша норма ${night.restingHrBaseline!.round()}'
+                    : null,
+              ),
+            if (night.spo2Min != null)
+              item(
+                Icons.air_rounded,
+                'Минимум SpO₂',
+                '${night.spo2Min!.round()}%',
+                hint: (night.spo2Dips ?? 0) > 0
+                    ? 'Провалов ниже 90%: ${night.spo2Dips}'
+                    : 'Без провалов ниже 90%',
+              ),
+            if (night.sleepRegularityMinutes != null)
+              item(
+                Icons.schedule_rounded,
+                'Регулярность отбоя',
+                '±${night.sleepRegularityMinutes!.round()} мин',
+                hint: 'Разброс за 14 дней; до 30 минут — отлично',
+              ),
+            if (vo2Max != null)
+              item(
+                Icons.directions_run_rounded,
+                'VO₂max (оценка)',
+                '${vo2Max!.toStringAsFixed(0)} мл/кг/мин',
+                hint: 'По пульсу покоя и максимальному пульсу',
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Почасовой стресс за сутки: мини-столбики.
+class _StressTimelineCard extends StatelessWidget {
+  const _StressTimelineCard({required this.points});
+
+  final List<StressPoint> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Color color(int v) => v >= 66
+        ? theme.colorScheme.error
+        : v >= 33
+            ? const Color(0xFFEAB308)
+            : const Color(0xFF22C55E);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.monitor_heart_outlined,
+                  size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text('Стресс за сутки', style: theme.textTheme.titleSmall),
+            ]),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 56,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final p in points) ...[
+                    Expanded(
+                      child: Container(
+                        height: 6 + p.value / 100 * 50,
+                        decoration: BoxDecoration(
+                          color: color(p.value),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(DateFormat.Hm().format(points.first.at),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline)),
+                Text('сейчас',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
