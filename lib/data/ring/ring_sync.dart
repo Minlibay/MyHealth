@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
+import '../profile_controller.dart';
 import '../sync_settings.dart';
 import 'ring_connection.dart';
 import 'ring_history.dart';
@@ -46,6 +47,14 @@ class RingSyncController extends Notifier<RingSyncState> {
             .read(ringServiceProvider)
             .enableAutoMonitoring(intervalMinutes: 15)
             .catchError((_) {});
+        // Профиль пользователя — в кольцо (точность калорий/дистанции).
+        final profile = ref.read(profileControllerProvider).value;
+        if (profile != null) {
+          ref
+              .read(profileControllerProvider.notifier)
+              .sendToRing(profile)
+              .catchError((_) {});
+        }
         // Все накопленные замеры подтягиваются сразу при подключении;
         // пауза даёт живому потоку и конфигурации встать в очередь первыми.
         Future.delayed(const Duration(seconds: 3), () {

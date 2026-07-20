@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Baseline;
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -58,6 +58,9 @@ class InsightsScreen extends ConsumerWidget {
                 if (data.trainingLoad != null &&
                     data.trainingLoad!.status != 'unknown')
                   _TrainingLoadCard(load: data.trainingLoad!),
+                if (data.trends.isNotEmpty) _TrendsCard(trends: data.trends),
+                if (data.baselines.isNotEmpty)
+                  _BaselinesCard(baselines: data.baselines),
               ],
             ),
           );
@@ -136,6 +139,150 @@ class _ScoreCard extends StatelessWidget {
               child: Text('Нет детализации'),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Тренды: среднее этой недели против прошлой по каждой метрике.
+class _TrendsCard extends StatelessWidget {
+  const _TrendsCard({required this.trends});
+
+  final List<Trend> trends;
+
+  String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.trending_up_rounded,
+                  size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text('Тренды за неделю', style: theme.textTheme.titleSmall),
+            ]),
+            const SizedBox(height: 6),
+            for (final t in trends)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(t.metric.icon, size: 18, color: t.metric.color),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(t.metric.title,
+                          style: theme.textTheme.bodyMedium),
+                    ),
+                    Text(
+                      '${_fmt(t.lastWeekAvg)} → ${_fmt(t.thisWeekAvg)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      switch (t.direction) {
+                        'up' => Icons.arrow_upward_rounded,
+                        'down' => Icons.arrow_downward_rounded,
+                        _ => Icons.remove_rounded,
+                      },
+                      size: 15,
+                      color: t.direction == 'flat'
+                          ? theme.colorScheme.outline
+                          : t.metric.color,
+                    ),
+                    SizedBox(
+                      width: 44,
+                      child: Text(
+                        '${t.changePct > 0 ? '+' : ''}${t.changePct.toStringAsFixed(0)}%',
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: t.direction == 'flat'
+                                ? theme.colorScheme.outline
+                                : t.metric.color),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Личные нормы: среднее за 30 дней ± σ и текущее отклонение.
+class _BaselinesCard extends StatelessWidget {
+  const _BaselinesCard({required this.baselines});
+
+  final List<Baseline> baselines;
+
+  String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.straighten_rounded,
+                  size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text('Ваши нормы (30 дней)', style: theme.textTheme.titleSmall),
+            ]),
+            const SizedBox(height: 6),
+            for (final b in baselines)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(b.metric.icon, size: 18, color: b.metric.color),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(b.metric.title,
+                          style: theme.textTheme.bodyMedium),
+                    ),
+                    Text(
+                      '${_fmt(b.avg)} ± ${_fmt(b.stdDev)} ${b.metric.unit}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    if (b.deviationPct != null) ...[
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 44,
+                        child: Text(
+                          '${b.deviationPct! > 0 ? '+' : ''}${b.deviationPct!.toStringAsFixed(0)}%',
+                          textAlign: TextAlign.end,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: b.deviationPct!.abs() < 10
+                                ? theme.colorScheme.outline
+                                : const Color(0xFFEAB308),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
