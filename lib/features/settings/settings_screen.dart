@@ -183,6 +183,16 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               children: [
                 ListTile(
+                  leading: Icon(Icons.troubleshoot_rounded,
+                      color: theme.colorScheme.primary),
+                  title: const Text('Диагностика данных'),
+                  subtitle: const Text(
+                      'Почему не видно данные Fitbit / Google Health.'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/health-diagnostics'),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
                   leading: Icon(Icons.shield_outlined,
                       color: theme.colorScheme.primary),
                   title: const Text('О данных'),

@@ -40,4 +40,8 @@ class ApiHealthRepository implements HealthRepository {
   @override
   Future<List<Workout>> fetchWorkouts({int days = 30}) =>
       _workoutsApi.fetchWorkouts(days: days);
+
+  // Диагностика применима только к устройству-хранилищу, не к облаку.
+  @override
+  Future<List<MetricDiagnostic>> diagnostics({int days = 7}) async => const [];
 }

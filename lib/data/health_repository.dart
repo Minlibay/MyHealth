@@ -47,4 +47,30 @@ abstract class HealthRepository {
 
   /// Тренировки за последние [days] дней (новые первыми).
   Future<List<Workout>> fetchWorkouts({int days});
+
+  /// Диагностика: по каждому показателю — доступность типа, число записей
+  /// за [days] дней и приложения-источники (какие приложения реально
+  /// пишут данные в хранилище). Пустой список — платформа без хранилища.
+  Future<List<MetricDiagnostic>> diagnostics({int days});
+}
+
+/// Строка диагностики хранилища по одному показателю.
+class MetricDiagnostic {
+  const MetricDiagnostic({
+    required this.metric,
+    required this.available,
+    required this.recordCount,
+    required this.sources,
+  });
+
+  final HealthMetric metric;
+
+  /// Тип данных поддерживается платформой/хранилищем.
+  final bool available;
+
+  /// Сколько записей нашлось за период.
+  final int recordCount;
+
+  /// Имена приложений/устройств, записавших данные (например «Fitbit»).
+  final List<String> sources;
 }

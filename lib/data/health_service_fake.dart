@@ -175,5 +175,19 @@ class FakeHealthService implements HealthRepository {
     return workouts;
   }
 
+  @override
+  Future<List<MetricDiagnostic>> diagnostics({int days = 7}) async {
+    await _delay();
+    return [
+      for (final m in HealthMetric.values)
+        MetricDiagnostic(
+          metric: m,
+          available: true,
+          recordCount: 20 + _rnd.nextInt(80),
+          sources: const ['Demo'],
+        ),
+    ];
+  }
+
   Future<void> _delay() => Future.delayed(const Duration(milliseconds: 400));
 }
