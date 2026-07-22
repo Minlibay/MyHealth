@@ -13,6 +13,7 @@ import 'features/sleep_history/sleep_history_screen.dart';
 import 'features/weekly/weekly_report_screen.dart';
 import 'features/compare/compare_screen.dart';
 import 'features/insights/insights_screen.dart';
+import 'features/integrations/google_health_screen.dart';
 import 'features/ring/ring_screen.dart';
 import 'features/settings/health_diagnostics_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -64,6 +65,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/health-diagnostics',
           builder: (_, _) => const HealthDiagnosticsScreen()),
+      GoRoute(
+          path: '/google-health',
+          builder: (_, _) => const GoogleHealthScreen()),
       GoRoute(
         path: '/metric/:name',
         builder: (_, state) {

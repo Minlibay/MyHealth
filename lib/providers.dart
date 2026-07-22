@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/health_metric.dart';
 import 'data/api/api_health_repository.dart';
 import 'data/auth/auth_controller.dart';
+import 'data/google_health/google_health_controller.dart';
 import 'data/health_repository.dart';
 import 'data/health_repository_factory.dart';
 import 'data/insights.dart';
@@ -213,6 +214,9 @@ class SyncController extends Notifier<SyncStatus> {
       }
       state = SyncStatus(SyncPhase.synced, at: DateTime.now(), inserted: total);
       // Обновляем облачные данные на дашборде.
+      // Подтягиваем облачные данные Google Health (Fitbit), если подключены.
+      await ref.read(googleHealthApiProvider).sync();
+
       ref.invalidate(readingsProvider);
       ref.invalidate(metricSeriesProvider);
       ref.invalidate(workoutsProvider);

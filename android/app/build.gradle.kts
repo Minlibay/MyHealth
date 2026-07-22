@@ -31,6 +31,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Требуется flutter_appauth (OAuth redirect). Реальная схема Google
+        // используется на iOS; Android-вход появится после Android-клиента.
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.myhealthv.app"
     }
 
     buildTypes {
