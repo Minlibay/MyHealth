@@ -385,6 +385,44 @@ class RealHealthService implements HealthRepository {
     return workouts;
   }
 
+  @override
+  Future<List<MetricDiagnostic>> diagnostics({int days = 7}) async {
+    await _ensureConfigured();
+    final now = DateTime.now();
+    final from = now.subtract(Duration(days: days));
+
+    final result = <MetricDiagnostic>[];
+    for (final metric in HealthMetric.values) {
+      final types = _typeMap[metric]!;
+      // Тип доступен на платформе (иначе чтение бросает исключение).
+      final available = types.every(_health.isDataTypeAvailable);
+      var count = 0;
+      final sources = <String>{};
+      if (available) {
+        try {
+          final points = await _health.getHealthDataFromTypes(
+            types: types,
+            startTime: from,
+            endTime: now,
+          );
+          count = points.length;
+          for (final p in points) {
+            if (p.sourceName.isNotEmpty) sources.add(p.sourceName);
+          }
+        } catch (_) {
+          // Нет разрешения на этот тип — оставляем count=0.
+        }
+      }
+      result.add(MetricDiagnostic(
+        metric: metric,
+        available: available,
+        recordCount: count,
+        sources: sources.toList()..sort(),
+      ));
+    }
+    return result;
+  }
+
   String _num(HealthDataPoint p) => _fmt(_rawNum(p));
 
   String _fmt(double v) =>

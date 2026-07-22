@@ -138,6 +138,13 @@ final workoutsProvider = FutureProvider.family<List<Workout>, int>((ref, days) {
   return ref.watch(activeRepositoryProvider).fetchWorkouts(days: days);
 });
 
+/// Диагностика хранилища устройства (Apple Health / Health Connect):
+/// что реально доступно и какие приложения пишут данные.
+final healthDiagnosticsProvider =
+    FutureProvider<List<MetricDiagnostic>>((ref) {
+  return ref.watch(deviceRepositoryProvider).diagnostics(days: 7);
+});
+
 /// Инсайты (скоры, базовые линии, тренды) — считает бэкенд.
 /// Доступны только в облачном режиме.
 final insightsProvider = FutureProvider<Insights?>((ref) async {
