@@ -85,7 +85,18 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
-          _SectionTitle('Устройства'),
+          _SectionTitle('Устройства и источники'),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.cloud_sync_rounded,
+                  color: theme.colorScheme.primary),
+              title: const Text('Google Health / Fitbit'),
+              subtitle: const Text('Данные из облака Google (не Apple Health)'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/google-health'),
+            ),
+          ),
+          const SizedBox(height: 8),
           Card(
             child: ListTile(
               leading: Icon(Icons.bluetooth_rounded,
