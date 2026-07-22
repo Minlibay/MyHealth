@@ -70,7 +70,7 @@ class MetricCard extends ConsumerWidget {
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 96),
                             child: Text(
-                              reading!.source!.type.label,
+                              reading!.source!.shortLabel,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodySmall?.copyWith(

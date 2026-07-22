@@ -214,8 +214,11 @@ class SyncController extends Notifier<SyncStatus> {
       }
       state = SyncStatus(SyncPhase.synced, at: DateTime.now(), inserted: total);
       // Обновляем облачные данные на дашборде.
-      // Подтягиваем облачные данные Google Health (Fitbit), если подключены.
-      await ref.read(googleHealthApiProvider).sync();
+      // Подтягиваем облачные данные Google Health (Fitbit), если подключены
+      // и включены в настройках синхронизации.
+      if (ref.read(syncSettingsProvider).googleHealth) {
+        await ref.read(googleHealthApiProvider).sync();
+      }
 
       ref.invalidate(readingsProvider);
       ref.invalidate(metricSeriesProvider);
