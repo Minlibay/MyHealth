@@ -4,6 +4,7 @@
 enum MetricSourceType {
   appleHealth('apple_health', 'Apple Health'),
   healthConnect('health_connect', 'Health Connect'),
+  googleHealth('google_health', 'Google Health'),
   ring('ring', 'Кольцо'),
   manual('manual', 'Ручной ввод'),
   demo('demo', 'Демо'),
@@ -31,12 +32,36 @@ class MetricSource {
   final MetricSourceType type;
   final String? detail;
 
+  /// Приложения-компаньоны кольца/браслета Jstyle. Данные, записанные ими
+  /// в Apple Health / Health Connect, по сути идут с нашего устройства —
+  /// показываем как само приложение, без префикса хранилища.
+  static const _ringApps = ['jcvitalpro', 'jcring', 'jstyle', 'j-style'];
+
+  /// Только для хранилищ: если данные записало приложение кольца — считаем
+  /// их «нашими». Для самого типа ring подпись не меняем.
+  bool get _isRingApp {
+    const stores = {
+      MetricSourceType.appleHealth,
+      MetricSourceType.healthConnect,
+      MetricSourceType.googleHealth,
+    };
+    if (!stores.contains(type)) return false;
+    final d = detail?.toLowerCase();
+    return d != null && _ringApps.any(d.contains);
+  }
+
   /// Полная подпись для UI: «Apple Health · Apple Watch».
+  /// Для приложений кольца — только имя приложения («JCVitalPro»).
   String get label {
     final d = detail;
     if (d == null || d.isEmpty || d == type.label) return type.label;
+    if (_isRingApp) return d;
     return '${type.label} · $d';
   }
+
+  /// Короткая подпись (карточка метрики): для приложений кольца — имя
+  /// приложения, иначе — название источника.
+  String get shortLabel => _isRingApp ? detail! : type.label;
 
   /// Формат поля Source на сервере: "apple_health:Apple Watch".
   String toApi() {

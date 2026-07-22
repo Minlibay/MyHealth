@@ -47,6 +47,19 @@ void main() {
           'Health Connect');
       expect(MetricSource.ring.label, 'Кольцо · JCRing X3');
     });
+
+    test('приложения кольца показываются без префикса хранилища', () {
+      final s = MetricSource.fromApi('apple_health:JCVitalPro')!;
+      expect(s.type, MetricSourceType.appleHealth);
+      expect(s.label, 'JCVitalPro');
+      expect(s.shortLabel, 'JCVitalPro');
+    });
+
+    test('google_health распознаётся как отдельный источник', () {
+      final s = MetricSource.fromApi('google_health')!;
+      expect(s.type, MetricSourceType.googleHealth);
+      expect(s.label, 'Google Health');
+    });
   });
 
   group('preferFresher', () {

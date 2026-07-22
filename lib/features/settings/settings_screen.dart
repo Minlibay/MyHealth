@@ -143,6 +143,19 @@ class SettingsScreen extends ConsumerWidget {
                     onChanged: (v) =>
                         ref.read(syncSettingsProvider.notifier).setRing(v),
                   ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  SwitchListTile(
+                    secondary: Icon(Icons.cloud_sync_rounded,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Google Health / Fitbit'),
+                    subtitle: const Text(
+                        'Подтягивать данные из облака Google при '
+                        'синхронизации (нужно подключение).'),
+                    value: sync.googleHealth,
+                    onChanged: (v) => ref
+                        .read(syncSettingsProvider.notifier)
+                        .setGoogleHealth(v),
+                  ),
                 ],
               );
             }),
