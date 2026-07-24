@@ -37,6 +37,11 @@ class RingSyncState {
 /// Выкачивает историю с кольца и выгружает её на сервер (source=ring).
 /// При подключении кольца включает автозамеры — без них истории не будет.
 class RingSyncController extends Notifier<RingSyncState> {
+  /// Когда последний раз авто-выкачивали историю. BLE переподключается
+  /// часто — без троттлинга история качалась бы при каждом реконнекте.
+  DateTime? _lastAutoSync;
+  static const _autoSyncCooldown = Duration(minutes: 30);
+
   @override
   RingSyncState build() {
     ref.listen(ringConnectionProvider, (prev, next) {
@@ -55,8 +60,15 @@ class RingSyncController extends Notifier<RingSyncState> {
               .sendToRing(profile)
               .catchError((_) {});
         }
-        // Все накопленные замеры подтягиваются сразу при подключении;
-        // пауза даёт живому потоку и конфигурации встать в очередь первыми.
+        // Авто-выкачка истории — не чаще раза в 30 минут (реконнекты
+        // не должны запускать её каждый раз). Ручной синк — без ограничения.
+        final now = DateTime.now();
+        if (_lastAutoSync != null &&
+            now.difference(_lastAutoSync!) < _autoSyncCooldown) {
+          return;
+        }
+        _lastAutoSync = now;
+        // Пауза даёт живому потоку и конфигурации встать в очередь первыми.
         Future.delayed(const Duration(seconds: 3), () {
           if (ref.read(ringConnectionProvider).value ==
               RingConnState.connected) {

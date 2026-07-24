@@ -4,6 +4,7 @@ import 'package:health/health.dart';
 
 import '../core/health_metric.dart';
 import '../core/metric_source.dart';
+import '../core/metric_validation.dart';
 import 'health_repository.dart';
 import 'metric_reading.dart';
 import 'metric_sample.dart';
@@ -260,14 +261,19 @@ class RealHealthService implements HealthRepository {
       );
     }
 
-    final value = _convertValue(metric, _rawNum(latest));
-    return MetricReading(
-      metric: metric,
-      displayValue: _fmt(value),
-      value: value,
-      time: latest.dateTo,
-      source: _storeSource(latest.sourceName),
-    );
+    // Последнее правдоподобное значение (пропускаем мусор, напр. пульс 0).
+    for (final p in points) {
+      final v = _convertValue(metric, _rawNum(p));
+      if (!isPlausibleValue(metric, v)) continue;
+      return MetricReading(
+        metric: metric,
+        displayValue: _fmt(v),
+        value: v,
+        time: p.dateTo,
+        source: _storeSource(p.sourceName),
+      );
+    }
+    return null;
   }
 
   @override
@@ -352,10 +358,11 @@ class RealHealthService implements HealthRepository {
 
     return [
       for (final p in points)
-        MetricSample(
-            time: p.dateTo,
-            value: _convertValue(metric, _rawNum(p)),
-            source: _storeSource(p.sourceName)),
+        if (isPlausibleValue(metric, _convertValue(metric, _rawNum(p))))
+          MetricSample(
+              time: p.dateTo,
+              value: _convertValue(metric, _rawNum(p)),
+              source: _storeSource(p.sourceName)),
     ];
   }
 

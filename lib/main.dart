@@ -29,10 +29,13 @@ class MyHealthApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
 
-    // Авто-синхронизация: при входе (и старте с сохранённой сессией)
-    // выгружаем данные устройства на сервер.
+    // Авто-синхронизация только при смене пользователя (вход/старт с
+    // сохранённой сессией), а НЕ на каждое обновление токена — иначе
+    // синхронизация запускалась бы постоянно при ротации access-токена.
     ref.listen(authControllerProvider, (prev, next) {
-      if (next.value != null) {
+      final prevId = prev?.value?.userId;
+      final nextId = next.value?.userId;
+      if (nextId != null && nextId != prevId) {
         ref.read(syncControllerProvider.notifier).syncNow();
       }
     });
