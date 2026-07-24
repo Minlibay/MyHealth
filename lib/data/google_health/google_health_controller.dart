@@ -35,6 +35,13 @@ class GoogleHealthController {
     return inserted;
   }
 
+  /// Повторный опрос Google (для диагностики/ручного обновления).
+  Future<int> sync() async {
+    final n = await _ref.read(googleHealthApiProvider).sync();
+    _ref.invalidate(googleHealthStatusProvider);
+    return n;
+  }
+
   Future<void> disconnect() async {
     await _ref.read(googleHealthApiProvider).disconnect();
     _ref.invalidate(googleHealthStatusProvider);
