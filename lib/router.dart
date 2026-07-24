@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/health_metric.dart';
+import 'data/workout.dart';
+import 'features/activity/activity_screen.dart';
 import 'features/consent/consent_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -17,6 +19,7 @@ import 'features/integrations/google_health_screen.dart';
 import 'features/ring/ring_screen.dart';
 import 'features/settings/health_diagnostics_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/workouts/workout_detail_screen.dart';
 import 'features/workouts/workouts_screen.dart';
 import 'providers.dart';
 
@@ -55,6 +58,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/ring', builder: (_, _) => const RingScreen()),
       GoRoute(path: '/workouts', builder: (_, _) => const WorkoutsScreen()),
+      GoRoute(path: '/activity', builder: (_, _) => const ActivityScreen()),
+      GoRoute(
+        path: '/workout-detail',
+        builder: (_, state) =>
+            WorkoutDetailScreen(workout: state.extra as Workout),
+      ),
       GoRoute(path: '/insights', builder: (_, _) => const InsightsScreen()),
       GoRoute(path: '/compare', builder: (_, _) => const CompareScreen()),
       GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),

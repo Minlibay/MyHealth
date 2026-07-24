@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/workout.dart';
@@ -90,9 +91,11 @@ class _WorkoutTile extends StatelessWidget {
     ];
 
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           ListTile(
+            onTap: () => context.push('/workout-detail', extra: w),
             leading: Container(
               width: 44,
               height: 44,
