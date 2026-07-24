@@ -16,8 +16,21 @@ bool isPlausibleValue(HealthMetric metric, double value) {
       return value >= 30 && value <= 45;
     case HealthMetric.hrv:
       return value > 0 && value < 400;
+    case HealthMetric.walkingHeartRate:
+      return value >= 25 && value <= 260;
     case HealthMetric.bloodPressure:
       return value >= 40 && value <= 300;
+    case HealthMetric.leanBodyMass:
+    case HealthMetric.bodyWater:
+      return value > 2 && value < 400;
+    case HealthMetric.bmi:
+      return value > 5 && value < 100;
+    case HealthMetric.waist:
+      return value > 20 && value < 300;
+    case HealthMetric.walkingSpeed:
+      return value > 0 && value < 20;
+    case HealthMetric.skinTemperature:
+      return value >= 20 && value <= 45;
     case HealthMetric.bloodGlucose:
       return value > 0.5 && value < 40;
     case HealthMetric.weight:
@@ -34,6 +47,18 @@ bool isPlausibleValue(HealthMetric metric, double value) {
     case HealthMetric.water:
     case HealthMetric.activeEnergy:
     case HealthMetric.dietaryEnergy:
+    case HealthMetric.flightsClimbed:
+    case HealthMetric.basalEnergy:
+    case HealthMetric.totalCalories:
+    case HealthMetric.exerciseTime:
+    case HealthMetric.standTime:
+    case HealthMetric.moveMinutes:
+    case HealthMetric.mindfulness:
+    case HealthMetric.distanceCycling:
+    case HealthMetric.distanceSwimming:
+    case HealthMetric.carbs:
+    case HealthMetric.protein:
+    case HealthMetric.fat:
       return value >= 0;
   }
 }
