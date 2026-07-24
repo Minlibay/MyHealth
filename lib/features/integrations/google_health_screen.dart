@@ -32,6 +32,20 @@ class _GoogleHealthScreenState extends ConsumerState<GoogleHealthScreen> {
     }
   }
 
+  Future<void> _sync() async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final n = await ref.read(googleHealthControllerProvider).sync();
+      messenger.showSnackBar(
+          SnackBar(content: Text('Синхронизация: загружено записей $n')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _disconnect() async {
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -87,7 +101,10 @@ class _GoogleHealthScreenState extends ConsumerState<GoogleHealthScreen> {
               error: (e, _) => _Note('Ошибка: $e'),
               data: (s) => s.connected
                   ? _ConnectedCard(
-                      status: s, busy: _busy, onDisconnect: _disconnect)
+                      status: s,
+                      busy: _busy,
+                      onSync: _sync,
+                      onDisconnect: _disconnect)
                   : FilledButton.icon(
                       onPressed: _busy ? null : _connect,
                       icon: _busy
@@ -110,11 +127,13 @@ class _ConnectedCard extends StatelessWidget {
   const _ConnectedCard({
     required this.status,
     required this.busy,
+    required this.onSync,
     required this.onDisconnect,
   });
 
   final GoogleHealthStatus status;
   final bool busy;
+  final VoidCallback onSync;
   final VoidCallback onDisconnect;
 
   @override
@@ -140,6 +159,17 @@ class _ConnectedCard extends StatelessWidget {
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.error)),
           ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          onPressed: busy ? null : onSync,
+          icon: busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.sync_rounded),
+          label: const Text('Синхронизировать'),
+        ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: busy ? null : onDisconnect,
