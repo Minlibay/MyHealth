@@ -259,6 +259,25 @@ class _WorkoutsTile extends ConsumerWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
+                  color: theme.colorScheme.tertiary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.local_fire_department_rounded,
+                    color: theme.colorScheme.tertiary, size: 22),
+              ),
+              title: const Text('Активность'),
+              subtitle: const Text('Движение и энергия за сегодня'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/activity'),
+            ),
+          ),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              leading: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
                   color: theme.colorScheme.primary.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(14),
                 ),
