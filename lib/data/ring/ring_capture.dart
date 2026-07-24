@@ -4,6 +4,7 @@ import '../../core/health_metric.dart';
 import '../../core/health_status.dart';
 import '../../core/metric_format.dart';
 import '../../core/metric_source.dart';
+import '../../core/metric_validation.dart';
 import '../auth/auth_controller.dart';
 import '../metric_reading.dart';
 import '../metric_sample.dart';
@@ -41,6 +42,8 @@ class RingCaptureController
     void put(HealthMetric metric, num? v) {
       if (v == null) return;
       final value = v.toDouble();
+      // Отсекаем мусор (пульс/SpO₂ = 0 при плохом контакте кольца).
+      if (!isPlausibleValue(metric, value)) return;
       map[metric] = MetricReading(
         metric: metric,
         value: value,
