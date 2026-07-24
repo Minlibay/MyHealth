@@ -58,6 +58,41 @@ final Map<HealthMetric, List<HealthDataType>> _typeMap = {
   HealthMetric.dietaryEnergy: Platform.isIOS
       ? [HealthDataType.DIETARY_ENERGY_CONSUMED]
       : [HealthDataType.NUTRITION],
+  // --- Расширенный набор (в основном iOS/Apple Health) ---
+  HealthMetric.flightsClimbed: [HealthDataType.FLIGHTS_CLIMBED],
+  HealthMetric.basalEnergy: [HealthDataType.BASAL_ENERGY_BURNED],
+  HealthMetric.totalCalories: [HealthDataType.TOTAL_CALORIES_BURNED],
+  HealthMetric.exerciseTime:
+      Platform.isIOS ? [HealthDataType.EXERCISE_TIME] : const [],
+  HealthMetric.standTime:
+      Platform.isIOS ? [HealthDataType.APPLE_STAND_TIME] : const [],
+  HealthMetric.moveMinutes:
+      Platform.isIOS ? [HealthDataType.APPLE_MOVE_TIME] : const [],
+  HealthMetric.mindfulness:
+      Platform.isIOS ? [HealthDataType.MINDFULNESS] : const [],
+  HealthMetric.distanceCycling:
+      Platform.isIOS ? [HealthDataType.DISTANCE_CYCLING] : const [],
+  HealthMetric.distanceSwimming:
+      Platform.isIOS ? [HealthDataType.DISTANCE_SWIMMING] : const [],
+  HealthMetric.walkingHeartRate:
+      Platform.isIOS ? [HealthDataType.WALKING_HEART_RATE] : const [],
+  HealthMetric.leanBodyMass: [HealthDataType.LEAN_BODY_MASS],
+  HealthMetric.bmi: [HealthDataType.BODY_MASS_INDEX],
+  HealthMetric.waist:
+      Platform.isIOS ? [HealthDataType.WAIST_CIRCUMFERENCE] : const [],
+  HealthMetric.bodyWater:
+      Platform.isIOS ? const [] : [HealthDataType.BODY_WATER_MASS],
+  HealthMetric.walkingSpeed:
+      Platform.isIOS ? [HealthDataType.WALKING_SPEED] : const [],
+  HealthMetric.carbs:
+      Platform.isIOS ? [HealthDataType.DIETARY_CARBS_CONSUMED] : const [],
+  HealthMetric.protein:
+      Platform.isIOS ? [HealthDataType.DIETARY_PROTEIN_CONSUMED] : const [],
+  HealthMetric.fat:
+      Platform.isIOS ? [HealthDataType.DIETARY_FATS_CONSUMED] : const [],
+  HealthMetric.skinTemperature: Platform.isIOS
+      ? [HealthDataType.SLEEP_WRIST_TEMPERATURE]
+      : [HealthDataType.SKIN_TEMPERATURE],
 };
 
 /// Накопительные показатели: осмыслена суточная сумма, а не последняя запись.
@@ -67,13 +102,30 @@ const Set<HealthMetric> _dailySumMetrics = {
   HealthMetric.distance,
   HealthMetric.water,
   HealthMetric.dietaryEnergy,
+  // Накопительные за сутки.
+  HealthMetric.flightsClimbed,
+  HealthMetric.basalEnergy,
+  HealthMetric.totalCalories,
+  HealthMetric.exerciseTime,
+  HealthMetric.standTime,
+  HealthMetric.moveMinutes,
+  HealthMetric.mindfulness,
+  HealthMetric.distanceCycling,
+  HealthMetric.distanceSwimming,
+  HealthMetric.carbs,
+  HealthMetric.protein,
+  HealthMetric.fat,
 };
 
 /// Приведение сырого значения к единицам приложения:
 /// метры → км/см, доля жира на iOS → проценты.
 double _convertValue(HealthMetric metric, double v) => switch (metric) {
-      HealthMetric.distance => v / 1000,
-      HealthMetric.height => v * 100,
+      HealthMetric.distance ||
+      HealthMetric.distanceCycling ||
+      HealthMetric.distanceSwimming =>
+        v / 1000, // метры → км
+      HealthMetric.height || HealthMetric.waist => v * 100, // метры → см
+      HealthMetric.walkingSpeed => v * 3.6, // м/с → км/ч
       // HealthKit может отдавать долю (0.18 = 18%), Health Connect — проценты.
       HealthMetric.bodyFat => v <= 1 ? v * 100 : v,
       _ => v,
@@ -191,6 +243,9 @@ class RealHealthService implements HealthRepository {
           source: _storeSource());
     }
 
+    // Тип недоступен на этой платформе — данных нет.
+    if (types.isEmpty) return null;
+
     // Накопительные показатели — сумма за сегодня.
     if (_dailySumMetrics.contains(metric)) {
       final startOfDay = DateTime(to.year, to.month, to.day);
@@ -294,9 +349,11 @@ class RealHealthService implements HealthRepository {
       return samples;
     }
 
+    final seriesTypes = _typeMap[metric]!;
+    if (seriesTypes.isEmpty) return const [];
     final from = now.subtract(Duration(days: days));
     final points = await _health.getHealthDataFromTypes(
-      types: _typeMap[metric]!,
+      types: seriesTypes,
       startTime: from,
       endTime: now,
     );
