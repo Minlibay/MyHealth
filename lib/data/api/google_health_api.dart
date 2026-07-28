@@ -61,10 +61,16 @@ class GoogleHealthApi {
   }
 
   /// Опрос Google (клиент вызывает при обычной синхронизации).
+  /// Обход всех типов данных занимает минуты — таймаут увеличен.
   Future<int> sync() async {
     try {
-      final res =
-          await _client.dio.post('/api/integrations/google-health/sync');
+      final res = await _client.dio.post(
+        '/api/integrations/google-health/sync',
+        options: Options(
+          receiveTimeout: const Duration(minutes: 5),
+          sendTimeout: const Duration(minutes: 1),
+        ),
+      );
       if (res.statusCode == 200 && res.data is Map) {
         return (res.data as Map)['inserted'] as int? ?? 0;
       }
