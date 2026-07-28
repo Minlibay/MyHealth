@@ -28,9 +28,11 @@ class GoogleHealthController {
     if (auth == null) {
       throw const ApiException('Вход отменён или платформа не поддерживается.');
     }
-    final inserted = await _ref
+    await _ref
         .read(googleHealthApiProvider)
         .connect(auth.refreshToken, scopes: auth.scopes);
+    // Подключение отвечает сразу; первый (глубокий) опрос запускаем отдельно.
+    final inserted = await _ref.read(googleHealthApiProvider).sync();
     _ref.invalidate(googleHealthStatusProvider);
     return inserted;
   }
