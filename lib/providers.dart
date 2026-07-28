@@ -182,6 +182,8 @@ class SyncController extends Notifier<SyncStatus> {
     state = const SyncStatus(SyncPhase.syncing);
     try {
       var total = 0;
+      var failures = 0;
+      String? lastError;
       // Выгрузку из хранилища платформы (Apple Health / Health Connect)
       // можно выключить в настройках синхронизации.
       if (ref.read(syncSettingsProvider).healthStore) {
@@ -195,36 +197,53 @@ class SyncController extends Notifier<SyncStatus> {
           await device.requestPermissions();
         } catch (_) {}
         for (final metric in HealthMetric.values) {
-          // Одна недоступная метрика (нет разрешения/типа на платформе)
-          // не должна отменять синхронизацию остальных.
-          final List<MetricSample> series;
+          // Ни чтение, ни выгрузка одной метрики не должны отменять
+          // синхронизацию остальных (раньше упавшая выгрузка обрывала цикл).
           try {
-            series = await device.fetchSeries(metric, days: 30);
-          } catch (_) {
-            continue;
+            final series = await device.fetchSeries(metric, days: 30);
+            total += await api.uploadSamples(metric, series);
+          } catch (e) {
+            failures++;
+            lastError = '$e';
           }
-          total += await api.uploadSamples(metric, series);
         }
         // Тренировки выгружаются вместе с показателями.
-        List<Workout> workouts = const [];
         try {
-          workouts = await device.fetchWorkouts(days: 30);
-        } catch (_) {}
-        total += await ref.read(workoutsApiProvider).uploadWorkouts(workouts);
-      }
-      state = SyncStatus(SyncPhase.synced, at: DateTime.now(), inserted: total);
-      // Обновляем облачные данные на дашборде.
-      // Подтягиваем облачные данные Google Health (Fitbit), если подключены
-      // и включены в настройках синхронизации.
-      if (ref.read(syncSettingsProvider).googleHealth) {
-        await ref.read(googleHealthApiProvider).sync();
+          final workouts = await device.fetchWorkouts(days: 30);
+          total += await ref.read(workoutsApiProvider).uploadWorkouts(workouts);
+        } catch (e) {
+          failures++;
+          lastError = '$e';
+        }
       }
 
+      // Сразу обновляем дашборд: облачный опрос Google идёт долго и не
+      // должен задерживать (и тем более отменять) показ свежих данных.
       ref.invalidate(readingsProvider);
       ref.invalidate(metricSeriesProvider);
       ref.invalidate(workoutsProvider);
       ref.invalidate(insightsProvider);
       ref.invalidate(sleepSessionsProvider);
+
+      state = SyncStatus(
+        failures > 0 ? SyncPhase.error : SyncPhase.synced,
+        at: DateTime.now(),
+        inserted: total,
+        message: failures > 0
+            ? 'Часть данных не выгружена ($failures): $lastError'
+            : null,
+      );
+
+      // Google Health (Fitbit) — в фоне, ошибки не влияют на общий статус.
+      if (ref.read(syncSettingsProvider).googleHealth) {
+        ref.read(googleHealthApiProvider).sync().then((n) {
+          if (n > 0) {
+            ref.invalidate(readingsProvider);
+            ref.invalidate(metricSeriesProvider);
+            ref.invalidate(insightsProvider);
+          }
+        }).catchError((_) {});
+      }
     } catch (e) {
       state = SyncStatus(SyncPhase.error, at: DateTime.now(), message: '$e');
     }
