@@ -21,11 +21,46 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyHealthApp()));
 }
 
-class MyHealthApp extends ConsumerWidget {
+class MyHealthApp extends ConsumerStatefulWidget {
   const MyHealthApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyHealthApp> createState() => _MyHealthAppState();
+}
+
+class _MyHealthAppState extends ConsumerState<MyHealthApp>
+    with WidgetsBindingObserver {
+  DateTime? _lastResumeSync;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// При возврате в приложение подтягиваем свежие данные (не чаще раза в
+  /// 15 минут) — иначе дашборд ждал перезапуска приложения.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final now = DateTime.now();
+    if (_lastResumeSync != null &&
+        now.difference(_lastResumeSync!) < const Duration(minutes: 15)) {
+      return;
+    }
+    _lastResumeSync = now;
+    ref.read(syncControllerProvider.notifier).syncNow();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
 
