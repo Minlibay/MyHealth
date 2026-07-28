@@ -126,8 +126,8 @@ double _convertValue(HealthMetric metric, double v) => switch (metric) {
         v / 1000, // метры → км
       HealthMetric.height || HealthMetric.waist => v * 100, // метры → см
       HealthMetric.walkingSpeed => v * 3.6, // м/с → км/ч
-      // HealthKit может отдавать долю (0.18 = 18%), Health Connect — проценты.
-      HealthMetric.bodyFat => v <= 1 ? v * 100 : v,
+      // HealthKit отдаёт доли (0.9 = 90%), Health Connect — проценты.
+      HealthMetric.bodyFat || HealthMetric.bloodOxygen => v <= 1 ? v * 100 : v,
       _ => v,
     };
 
