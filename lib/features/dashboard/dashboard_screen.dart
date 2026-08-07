@@ -27,6 +27,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _requesting = false;
   bool? _granted;
 
+  @override
+  void initState() {
+    super.initState();
+    // Автоматически подтягиваем данные при открытии, если последняя
+    // синхронизация была давно — вручную нажимать не нужно.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !ref.read(cloudModeProvider)) return;
+      final status = ref.read(syncControllerProvider);
+      final stale = status.at == null ||
+          DateTime.now().difference(status.at!) > const Duration(minutes: 30);
+      if (stale && status.phase != SyncPhase.syncing) {
+        ref.read(syncControllerProvider.notifier).syncNow();
+      }
+    });
+  }
+
   Future<void> _requestAccess() async {
     setState(() => _requesting = true);
     final ok = await ref.read(deviceRepositoryProvider).requestPermissions();

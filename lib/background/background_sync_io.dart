@@ -86,7 +86,9 @@ Future<void> initBackgroundSync() async {
   await Workmanager().registerPeriodicTask(
     _syncTask,
     _syncTask,
-    frequency: const Duration(hours: 4),
+    // Чаще — чтобы данные обновлялись без ручного запуска. Система сама
+    // решает, когда именно выполнить задачу (Android ≥15 мин, iOS реже).
+    frequency: const Duration(hours: 1),
     constraints: Constraints(networkType: NetworkType.connected),
     existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
   );
