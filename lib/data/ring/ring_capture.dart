@@ -59,6 +59,13 @@ class RingCaptureController
     return map;
   }
 
+  /// Накопительные за сутки показатели — не выгружаем из живого потока.
+  static const _cumulativeMetrics = {
+    HealthMetric.steps,
+    HealthMetric.distance,
+    HealthMetric.activeEnergy,
+  };
+
   /// Выгрузка на сервер не чаще раза в 20 с (кольцо шлёт данные часто).
   void _maybeUpload() {
     if (!ref.read(cloudModeProvider)) return;
@@ -72,6 +79,10 @@ class RingCaptureController
     for (final entry in state.entries) {
       final r = entry.value;
       if (r?.value == null) continue;
+      // Накопительные показатели (шаги) в живом потоке — это счётчик за
+      // сутки: выгружать его каждые 20 с значит плодить десятки одинаковых
+      // записей. Суточные итоги приходят из истории кольца.
+      if (_cumulativeMetrics.contains(entry.key)) continue;
       // fire-and-forget; офлайн/ошибки игнорируем.
       api.uploadSamples(entry.key, [
         MetricSample(

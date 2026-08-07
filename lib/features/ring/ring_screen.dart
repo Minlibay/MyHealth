@@ -252,6 +252,12 @@ class _HistorySyncButton extends StatelessWidget {
     var breakdown = counts == null || counts.isEmpty
         ? ''
         : '\n${kindLabels.entries.map((e) => '${e.value} ${counts[e.key] ?? 0}').join(' · ')}';
+    // Поля записи сна — по ним видно, что реально шлёт SDK, если фазы
+    // не распознались.
+    final sleepKeys = sync.history?.sampleKeys['sleep'];
+    if (sleepKeys != null && (sync.history?.sleepSessions.isEmpty ?? true)) {
+      breakdown += '\nПоля сна: $sleepKeys';
+    }
     final osa = sync.history?.osaRisks;
     if (osa != null && osa.isNotEmpty) {
       final label = switch (osa.first.risk) {

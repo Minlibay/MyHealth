@@ -20,6 +20,10 @@ class RingHistory {
   /// Оценки риска апноэ по ночам: 0/1 — низкий, 2 — умеренный, 3 — высокий.
   final List<({DateTime time, int risk})> osaRisks = [];
 
+  /// Ключи первой записи каждого типа — диагностика форматов SDK
+  /// (имена полей на Android и iOS различаются).
+  final Map<String, String> sampleKeys = {};
+
   bool get isEmpty =>
       sleepSessions.isEmpty && samples.values.every((l) => l.isEmpty);
 
@@ -62,6 +66,9 @@ class RingHistoryBuilder {
   void addRecords(String kind, List<Map<String, String?>> records) {
     _history.rawCounts.update(kind, (v) => v + records.length,
         ifAbsent: () => records.length);
+    if (records.isNotEmpty && !_history.sampleKeys.containsKey(kind)) {
+      _history.sampleKeys[kind] = records.first.keys.join(',');
+    }
     for (final r in records) {
       switch (kind) {
         case 'activity':
@@ -184,9 +191,20 @@ class RingHistoryBuilder {
   void _addSleep(Map<String, String?> r) {
     final start = _date(r);
     if (start == null) return;
-    final raw = r['arraySleepQuality'] ??
+    var raw = r['arraySleepQuality'] ??
         r['arraySleepData_perMinute'] ??
         r['arraySleepData_per2Minutes'];
+    // iOS-SDK называет поля иначе — ищем любой массив кодов фаз
+    // (список небольших чисел в поле со «sleep» в имени).
+    raw ??= r.entries
+        .where((e) =>
+            e.key.toLowerCase().contains('sleep') &&
+            (e.value?.contains(' ') ?? false) &&
+            e.value!
+                .split(RegExp(r'[,\s]+'))
+                .every((t) => int.tryParse(t) != null))
+        .map((e) => e.value)
+        .firstOrNull;
     if (raw == null || raw.isEmpty) return;
     final unitMinutes =
         int.tryParse(r['sleepUnitLength'] ?? '') ?? 5; // по умолчанию 5-мин сетка
